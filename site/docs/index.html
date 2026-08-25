@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShimbaBomb docs — notebook</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--highlight2:#ffb3c1;--green:#c8f0c9}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+.sketch{border:2px solid var(--ink);border-radius:255px 15px 225px 15px/15px 225px 15px 255px}
+.sketch2{border:2px solid var(--ink);border-radius:15px 225px 15px 255px/255px 15px 225px 15px}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{ text-decoration:none; border-bottom:2px solid var(--ink); padding-bottom:1px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg);filter:drop-shadow(2px 2px 0 rgba(43,42,51,.12))}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:52px;letter-spacing:-.5px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:34px;font-weight:700;margin:42px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+h3{font-family:'Caveat',cursive;font-size:26px;margin:22px 0 8px;transform:rotate(-.6deg)}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+mark.pink{background:linear-gradient(104deg,transparent 2%,var(--highlight2) 6%,var(--highlight2) 94%,transparent 98%)}
+mark.green{background:linear-gradient(104deg,transparent 2%,var(--green) 6%,var(--green) 94%,transparent 98%)}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card .cap{position:absolute;right:12px;top:-15px;font-family:'Caveat',cursive;font-size:18px;color:var(--ink-soft);transform:rotate(2deg)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+ul.hand{list-style:none;margin:8px 0}
+ul.hand li{padding-left:34px;position:relative;margin:7px 0}
+ul.hand li::before{content:'';position:absolute;left:2px;top:9px;width:14px;height:14px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;background:var(--highlight);transform:rotate(-4deg)}
+.note{font-family:'Caveat',cursive;font-size:22px;color:#e05252;transform:rotate(-2deg);display:inline-block}
+table{border-collapse:collapse;margin:12px 0;width:100%}
+td,th{border:2px solid var(--ink);padding:6px 12px;text-align:left}
+th{background:#fff;font-family:'Caveat',cursive;font-size:22px}
+td{background:rgba(255,255,255,.6)}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="https://github.com/Shimba-crypto/shimbabomb">github</a></p>
+
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>docs <span style="color:var(--ink-soft);font-size:36px">(notebook)</span></h1>
+</header>
+
+<p>one rule: every sentence ends with a dot. that's it. <span class="note">really.</span></p>
+
+<h2><span class="num">A</span>quick start</h2>
+<div class="card">
+  <span class="cap">terminal</span>
+<pre>git clone https://github.com/Shimba-crypto/shimbabomb.git
+cd shimbabomb
+./install.sh
+sb examples/hello.sb
+sb -i                  <span class="c"># REPL</span></pre>
+</div>
+
+<h2><span class="num">B</span>syntax — all of it</h2>
+
+<h3>variables & math</h3>
+<div class="card">
+<pre><span class="k">SB</span>
+<span class="k">set</span> x <span class="k">to</span> 10.
+<span class="k">set</span> y <span class="k">to</span> x <span class="k">plus</span> 1.      <span class="c"># minus / times / divided by / mod</span>
+<span class="k">set</span> z <span class="k">to</span> 7 <span class="k">divided evenly by</span> 2. <span class="c"># int div</span>
+<span class="k">set</span> s <span class="k">to</span> <span class="s">"n=${x}"</span>.      <span class="c"># ${} inside strings</span></pre>
+</div>
+
+<h3>say & input</h3>
+<div class="card alt">
+<pre><span class="k">say</span> <span class="s">"hello"</span>.
+<span class="k">ask</span> <span class="s">"your name?"</span>.   <span class="c"># → input()</span></pre>
+</div>
+
+<h3>if / loops</h3>
+<div class="card">
+<pre><span class="k">if</span> x <span class="k">is greater than</span> 5 <span class="k">then</span>
+  <span class="k">say</span> <span class="s">"big"</span>.
+<span class="k">otherwise if</span> x <span class="k">is</span> 5 <span class="k">then</span>
+  <span class="k">say</span> <span class="s">"five"</span>.
+<span class="k">otherwise</span>
+  <span class="k">say</span> <span class="s">"small"</span>.
+<span class="k">end</span>
+
+<span class="k">count</span> i <span class="k">from</span> 0 <span class="k">to</span> 5 <span class="k">then</span> <span class="k">say</span> i. <span class="k">end</span>
+<span class="k">loop</span> it <span class="k">through</span> xs <span class="k">then</span> <span class="k">say</span> it. <span class="k">end</span>
+<span class="k">while</span> hp <span class="k">is greater than</span> 0 <span class="k">then</span> <span class="k">break</span>. <span class="k">end</span></pre>
+</div>
+
+<h3>functions & lists & maps</h3>
+<div class="card alt">
+<pre><span class="k">define</span> add <span class="k">with</span> a <span class="k">and</span> b <span class="k">as</span>
+  <span class="k">give back</span> a <span class="k">plus</span> b.
+<span class="k">end</span>.
+<span class="k">say</span> add <span class="k">with</span> 2 <span class="k">and</span> 3.      <span class="c"># or add(2, 3).</span>
+
+<span class="k">set</span> xs <span class="k">to</span> list <span class="k">with</span> 1 <span class="k">and</span> 2.
+add_to <span class="k">with</span> xs <span class="k">and</span> 4.
+<span class="k">say</span> item <span class="k">with</span> 0 <span class="k">and</span> xs.   <span class="c"># → 1</span>
+
+<span class="k">set</span> m <span class="k">to</span> map(<span class="s">"k"</span>, 1).
+<span class="k">say</span> m[<span class="s">"k"</span>].              <span class="c"># bracket read/write</span>
+<span class="k">set</span> m[<span class="s">"n"</span>] <span class="k">to</span> 99.</pre>
+</div>
+
+<h3>match / try</h3>
+<div class="card">
+<pre><span class="k">match</span> name
+<span class="k">with</span> <span class="s">"shim"</span> <span class="k">then</span> <span class="k">say</span> <span class="s">"hi"</span>.
+<span class="k">with</span> _ <span class="k">then</span> <span class="k">say</span> <span class="s">"?"</span>.
+<span class="k">end</span>
+
+<span class="k">try</span>
+  <span class="k">raise</span> <span class="s">"oops"</span>.
+<span class="k">catch</span> e
+  <span class="k">say</span> e.                  <span class="c"># short note</span>
+  <span class="k">say</span> e_info[<span class="s">"trace"</span>].
+<span class="k">end</span></pre>
+</div>
+
+<h2><span class="num">C</span>shimgui — real GTK, not html</h2>
+<div class="card alt">
+<pre>shimgui_window <span class="k">with</span> <span class="s">"App"</span> <span class="k">and</span> 460 <span class="k">and</span> 320.
+shimgui_label <span class="k">with</span> <span class="s">"Hello"</span>.
+shimgui_button <span class="k">with</span> <span class="s">"Click"</span>.
+shimgui_run <span class="k">with</span>.</pre>
+</div>
+
+<h2><span class="num">D</span>cli</h2>
+<table class="sketch">
+<tr><th>cmd</th><th>what it does</th></tr>
+<tr><td><code>sb file.sb</code></td><td>run</td></tr>
+<tr><td><code>sb -i</code></td><td>REPL</td></tr>
+<tr><td><code>sb build file.sb</code></td><td>compile to binary</td></tr>
+<tr><td><code>sb pack deb|rpm|exe</code></td><td>make installers (self-contained, 35M hello vs 80M full)</td></tr>
+<tr><td><code>sb fmt / test / doc / lsp</code></td><td>format, test, docs, LSP</td></tr>
+</table>
+
+<h2><span class="num">E</span>std</h2>
+<ul class="hand">
+  <li><b>maths / lists / strings</b> — the basics, fast</li>
+  <li><b>files / crypto / datetime</b> — real I/O</li>
+  <li><b>ui / shimgui / fp</b> — glass HTML kit + native GTK + functional</li>
+  <li><b>serve / fetch</b> — web server + http client</li>
+  <li><b>nob / shimtorch</b> — tiny numpy/torch in SB</li>
+</ul>
+
+<p style="margin-top:12px"><mark>tip:</mark> every std module is just SB. open it. steal it.</p>
+
+<footer>
+  scribbled with <span style="color:var(--red)">♥</span> by Shimba-crypto — <a href="../">back home</a>
+</footer>
+
+</div>
+</body>
+</html>

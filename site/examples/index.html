@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Examples — ShimbaBomb</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--blue:#5b8def;--green:#c8f0c9}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:19px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+.sketch{border:2px solid var(--ink);border-radius:255px 15px 225px 15px/15px 225px 15px 255px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg);filter:drop-shadow(2px 2px 0 rgba(43,42,51,.12))}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:52px;letter-spacing:-.5px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:34px;font-weight:700;margin:36px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px;margin:18px 0}
+.card{position:relative;background:#fff;padding:16px 16px 14px;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card:nth-child(even){transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card h3{font-family:'Caveat',cursive;font-size:26px;margin-bottom:6px}
+.card p{color:var(--ink-soft);font-size:16px}
+.card a.btn{display:inline-block;font-family:'Caveat',cursive;font-weight:700;font-size:18px;color:var(--ink);text-decoration:none;background:#fff;padding:4px 16px;margin-top:8px;border:2px solid var(--ink);border-radius:255px 15px 225px 15px/15px 225px 15px 255px;transform:rotate(-1deg);box-shadow:2px 3px 0 rgba(43,42,51,.8)}
+.card a.btn:hover{transform:rotate(-1deg) translate(-1px,-2px);box-shadow:4px 6px 0 rgba(43,42,51,.8)}
+pre{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre;background:#fbf7ee;border-radius:8px;padding:8px 10px;margin-top:8px}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="../docs/">docs</a> · <a href="https://github.com/Shimba-crypto/shimbabomb">github</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>examples <span style="color:var(--ink-soft);font-size:30px">— try them!</span></h1>
+</header>
+<p>every file starts with <mark>SB</mark>. tap one, copy it, run <code>sb examples/&lt;name&gt;.sb</code></p>
+
+<div class="grid">
+
+<div class="card">
+  <h3>hello.sb</h3>
+  <p>the classic — 2 lines.</p>
+<pre><span class="k">SB</span>
+<span class="k">say</span> <span class="s">"Hello, ShimbaBomb!"</span>.</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/hello.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>math.sb</h3>
+  <p>words, not symbols.</p>
+<pre><span class="k">set</span> y <span class="k">to</span> 10 <span class="k">plus</span> 5.
+<span class="k">set</span> z <span class="k">to</span> 7 <span class="k">divided evenly by</span> 2.</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/math.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>fib.sb</h3>
+  <p>recursion — still english.</p>
+<pre><span class="k">define</span> fib <span class="k">with</span> n <span class="k">as</span>
+  <span class="k">if</span> n <span class="k">is less than</span> 2 <span class="k">then</span>
+    <span class="k">give back</span> n.
+  <span class="k">end</span>
+<span class="k">end</span>.</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/fib.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>counter_app.sb</h3>
+  <p>clicks + state.</p>
+<pre>shimgui_button <span class="k">with</span> <span class="s">"+ 1"</span>.
+<span class="k">set</span> state[<span class="s">"count"</span>] <span class="k">to</span> ...
+shimgui_run <span class="k">with</span>.</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/counter_app.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>shimgui_demo.sb</h3>
+  <p>real GTK — stats + meters.</p>
+<pre>shimgui_stat <span class="k">with</span> <span class="s">"COUNT"</span> ...
+shimgui_meter <span class="k">with</span> ...</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/shimgui_demo.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>shimgui_real_demo.sb</h3>
+  <p>no html — pure GtkButton.</p>
+<pre>shimgui_window <span class="k">with</span> <span class="s">"Real"</span> ...
+shimgui_label  ...
+shimgui_button ...</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/shimgui_real_demo.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>svm.sb</h3>
+  <p>a VM *in* SB — countdown + fib(10).</p>
+<pre>PUSH 3 / STORE n / loop:
+LOAD n / PRINT ...</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/svm.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>errors.sb</h3>
+  <p>try/catch that actually helps.</p>
+<pre><span class="k">try</span>
+  <span class="k">set</span> y <span class="k">to</span> 10 <span class="k">minus</span> <span class="s">"oops"</span>.
+<span class="k">catch</span> e
+  <span class="k">say</span> e_info[<span class="s">"trace"</span>].
+<span class="k">end</span></pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/errors.sb">open →</a>
+</div>
+
+<div class="card">
+  <h3>files.sb / loop.sb</h3>
+  <p>files + through loops.</p>
+<pre>read_file <span class="k">with</span> <span class="s">"./data.txt"</span>.
+<span class="k">loop</span> line <span class="k">through</span> lines ...</pre>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb/blob/main/examples/files.sb">open →</a>
+</div>
+
+</div>
+
+<footer>
+  all examples live in <code>examples/</code> — <a href="https://github.com/Shimba-crypto/shimbabomb/tree/main/examples">browse them on github</a>
+</footer>
+
+</div>
+</body>
+</html>

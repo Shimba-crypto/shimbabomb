@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Std — ShimbaBomb</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--blue:#5b8def}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg)}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:52px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:32px;font-weight:700;margin:36px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.5deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card h3{font-family:'Caveat',cursive;font-size:24px;margin-bottom:6px}
+.card p{color:var(--ink-soft)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+code{background:#fff;border:1px solid var(--ink);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:14px}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="../docs/">docs</a> · <a href="https://github.com/Shimba-crypto/shimbabomb">github</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>std <span style="color:var(--ink-soft);font-size:28px">— batteries included</span></h1>
+</header>
+<p>every file in <code>std/</code> is just SB you can open. steal, copy, remix. <mark>pls bring &lt;name&gt;.</mark></p>
+
+<div class="grid">
+
+<div class="card">
+<h3>maths</h3>
+<p>trig, lerp, clamp, is_prime, gcd, factorial…</p>
+<pre><span class="k">pls bring</span> maths.
+<span class="k">say</span> maths_sin <span class="k">with</span> 1.5.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/maths.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>lists</h3>
+<p>chunk, uniq, flatten, shuffle.</p>
+<pre>pls bring lists.
+<span class="k">say</span> chunk <span class="k">with</span> xs <span class="k">and</span> 2.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/lists.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>strings</h3>
+<p>word_count, title_case, caesar.</p>
+<pre>pls bring strings.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/strings.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>fp</h3>
+<p><mark>map_with / filter_with / reduce_with</mark></p>
+<pre>pls bring fp.
+map_with <span class="k">with</span> xs <span class="k">and</span> fn ...</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/fp.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>ui / shimgui</h3>
+<p>glass HTML kit + real GTK.</p>
+<pre>pls bring shimgui.
+shimgui_button <span class="k">with</span> <span class="s">"Click"</span>.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/shimgui.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>files_extra / fs_extra</h3>
+<p>read/write helpers, path utils.</p>
+<pre>pls bring files_extra.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/files_extra.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>crypto / datetime</h3>
+<p>hash, random, now, format.</p>
+<pre>pls bring crypto.
+pls bring datetime.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/crypto.sb">open →</a>
+</div>
+
+<div class="card">
+<h3>nob / shimtorch</h3>
+<p>tiny numpy/torch in SB.</p>
+<pre>pls bring nob.
+pls bring shimtorch.</pre>
+<a href="https://github.com/Shimba-crypto/shimbabomb/blob/main/std/nob.sb">open →</a>
+</div>
+
+</div>
+
+<footer>
+  all std lives in <code>std/</code> — <a href="https://github.com/Shimba-crypto/shimbabomb/tree/main/std">browse on github</a>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShimbaBomb (SB) — English-like scripting</title>
+<link rel="icon" href="logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#fbf7ee;
+  --ink:#2b2a33;
+  --ink-soft:#5a5866;
+  --red:#e05252;
+  --highlight:#ffe66d;
+  --highlight2:#ffb3c1;
+  --green:#7bc47f;
+  --blue:#5b8def;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Patrick Hand',cursive;
+  font-size:19px;
+  line-height:1.6;
+  color:var(--ink);
+  background:var(--paper);
+  background-image:
+    linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);
+  background-size:100% 34px;
+  min-height:100vh;
+}
+/* red margin line like a real notebook */
+.margin-line{
+  position:fixed;top:0;bottom:0;left:64px;width:2px;
+  background:rgba(224,82,82,.35);pointer-events:none;z-index:0;
+}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:48px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+
+/* hand-drawn wobbly border trick */
+.sketch{
+  border:2px solid var(--ink);
+  border-radius:255px 15px 225px 15px/15px 225px 15px 255px;
+}
+.sketch2{
+  border:2px solid var(--ink);
+  border-radius:15px 225px 15px 255px/255px 15px 225px 15px;
+}
+
+header{text-align:center;margin-bottom:8px}
+.logo{width:110px;height:110px;transform:rotate(-4deg);filter:drop-shadow(3px 3px 0 rgba(43,42,51,.15))}
+h1{
+  font-family:'Caveat',cursive;font-weight:700;
+  font-size:64px;letter-spacing:-.5px;transform:rotate(-1.5deg);
+  margin-top:4px;
+}
+h1 .sb{color:var(--red)}
+.tagline{font-size:24px;color:var(--ink-soft);transform:rotate(-.6deg);margin-bottom:8px}
+.doodle-underline{display:block;margin:6px auto 0;width:260px}
+
+h2{
+  font-family:'Caveat',cursive;font-size:38px;font-weight:700;
+  margin:56px 0 12px;transform:rotate(-1deg);
+}
+h2 .num{
+  display:inline-grid;place-items:center;width:44px;height:44px;
+  border:2px solid var(--ink);
+  border-radius:225px 15px 255px 15px/15px 255px 15px 225px;
+  font-size:24px;margin-right:10px;background:#fff;
+  transform:rotate(3deg);
+}
+
+mark{
+  background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);
+  padding:0 6px;border-radius:4px;
+}
+mark.pink{background:linear-gradient(104deg,transparent 2%,var(--highlight2) 6%,var(--highlight2) 94%,transparent 98%)}
+mark.green{background:linear-gradient(104deg,transparent 2%,#c8f0c9 6%,#c8f0c9 94%,transparent 98%)}
+
+/* code = index card with tape */
+.card{
+  position:relative;background:#fff;
+  padding:18px 20px 14px;margin:18px 0;
+  box-shadow:2px 4px 10px rgba(43,42,51,.12);
+  transform:rotate(-.7deg);
+}
+.card.alt{transform:rotate(.6deg)}
+.card::before{ /* tape */
+  content:'';position:absolute;top:-12px;left:50%;transform:translateX(-50%) rotate(-2deg);
+  width:90px;height:24px;background:rgba(255,230,109,.55);
+  border-left:1px dashed rgba(43,42,51,.15);
+  border-right:1px dashed rgba(43,42,51,.15);
+}
+pre{
+  font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.7;
+  overflow-x:auto;white-space:pre;
+}
+.k{color:var(--blue)} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic} .n{color:#8b5bd6}
+.card .cap{
+  position:absolute;right:14px;top:-16px;
+  font-family:'Caveat',cursive;font-size:20px;color:var(--ink-soft);
+  transform:rotate(2deg);
+}
+
+/* hand list */
+ul.hand{list-style:none;margin:10px 0}
+ul.hand li{padding-left:34px;position:relative;margin:8px 0}
+ul.hand li::before{
+  content:'';position:absolute;left:2px;top:9px;width:14px;height:14px;
+  border:2px solid var(--ink);
+  border-radius:225px 15px 255px 15px/15px 255px 15px 225px;
+  background:var(--highlight);
+  transform:rotate(-4deg);
+}
+
+/* arrows + notes */
+.note{
+  font-family:'Caveat',cursive;font-size:24px;color:var(--red);
+  transform:rotate(-2deg);display:inline-block;margin-top:4px;
+}
+.arrow-doodle{vertical-align:middle;margin-left:6px}
+
+/* buttons */
+a.btn{
+  display:inline-block;font-family:'Caveat',cursive;font-weight:700;font-size:26px;
+  color:var(--ink);text-decoration:none;background:#fff;
+  padding:6px 26px;margin:14px 10px 0 0;
+  border:2px solid var(--ink);
+  border-radius:255px 15px 225px 15px/15px 225px 15px 255px;
+  transform:rotate(-1deg);
+  box-shadow:2px 3px 0 rgba(43,42,51,.8);
+  transition:transform .12s, box-shadow .12s;
+}
+a.btn:hover{transform:rotate(-1deg) translate(-1px,-2px);box-shadow:4px 6px 0 rgba(43,42,51,.8)}
+a.btn.ghost{background:transparent;box-shadow:none}
+a.btn.ghost:hover{background:#fff}
+
+footer{
+  margin-top:80px;text-align:center;color:var(--ink-soft);
+  font-family:'Caveat',cursive;font-size:22px;transform:rotate(-1deg);
+}
+footer .heart{color:var(--red)}
+.scribble{display:block;margin:0 auto}
+
+table{border-collapse:collapse;margin:14px 0;width:100%}
+td,th{border:2px solid var(--ink);padding:6px 14px;text-align:left}
+th{background:#fff;font-family:'Caveat',cursive;font-size:24px}
+td{background:rgba(255,255,255,.6)}
+table.sketchy{transform:rotate(.4deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+
+<header>
+  <img class="logo" src="logo.svg" alt="SB logo">
+  <h1>Shimba<span class="sb">Bomb</span> <span style="font-size:40px;color:var(--ink-soft)">(SB)</span></h1>
+  <p class="tagline">English-like scripting that compiles to <mark class="green">native C</mark>.</p>
+  <svg class="doodle-underline" width="260" height="14" viewBox="0 0 260 14" fill="none">
+    <path d="M4 8 C 60 2, 120 12, 170 6 S 250 4, 256 8" stroke="#e05252" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+</header>
+
+<h2><span class="num">1</span>write it like english</h2>
+<p>no curly braces. no semicolons. just <mark>sentences that end with a dot</mark>.</p>
+
+<div class="card">
+  <span class="cap">hello.sb</span>
+<pre><span class="k">SB</span>
+<span class="k">set</span> name <span class="k">to</span> <span class="s">"world"</span>.
+<span class="k">say</span> <span class="s">"hello, ${name}!"</span>.
+
+<span class="c"># loops, conditions, functions — all plain words</span>
+<span class="k">count</span> i <span class="k">from</span> 1 <span class="k">to</span> 5 <span class="k">then</span>
+  <span class="k">say</span> i.
+<span class="k">end</span></pre>
+</div>
+
+<div class="card alt">
+  <span class="cap">it compiles. for real.</span>
+<pre>$ sb build hello.sb      <span class="c"># → native binary, no runtime</span>
+$ ./hello
+hello, world!</pre>
+</div>
+
+<h2><span class="num">2</span>real gui — not html</h2>
+<p>shimgui talks straight to <mark>GTK</mark>. actual buttons, actual windows.</p>
+
+<div class="card">
+  <span class="cap">gui.sb</span>
+<pre><span class="k">SB</span>
+shimgui_window <span class="k">with</span> <span class="s">"My App"</span> <span class="k">and</span> 460 <span class="k">and</span> 320.
+shimgui_label   <span class="k">with</span> <span class="s">"Hello — real GTK, not HTML"</span>.
+shimgui_button  <span class="k">with</span> <span class="s">"Click me"</span>.
+shimgui_run <span class="k">with</span>.</pre>
+</div>
+
+<h2><span class="num">3</span>errors you can actually read</h2>
+<p>catch gives you a note, and a <mark class="pink">secret map</mark> with the full story.</p>
+
+<div class="card">
+<pre><span class="k">try</span>
+    <span class="k">set</span> y <span class="k">to</span> 10 <span class="k">minus</span> <span class="s">"oops"</span>.
+<span class="k">catch</span> e
+    <span class="k">say</span> e.                    <span class="c"># the short note</span>
+    <span class="k">say</span> e_info[<span class="s">"line"</span>].       <span class="c"># where it broke</span>
+    <span class="k">say</span> e_info[<span class="s">"trace"</span>].      <span class="c"># how you got there</span>
+<span class="k">end</span></pre>
+</div>
+
+<h2><span class="num">4</span>install it</h2>
+<div class="card alt">
+<pre>git clone https://github.com/Shimba-crypto/shimbabomb.git
+cd shimbabomb
+./install.sh              <span class="c"># grabs gtk/curl deps, builds, installs</span>
+sb examples/hello.sb      <span class="c"># boom.</span></pre>
+</div>
+
+<p>
+  <a class="btn" href="https://github.com/Shimba-crypto/shimbabomb">star it on github</a>
+  <a class="btn ghost" href="https://github.com/Shimba-crypto/shimbabomb/tree/main/examples">see examples →</a>
+</p>
+
+<h2><span class="num">5</span>what's in the box</h2>
+<ul class="hand">
+  <li><b>sb</b> — interpreter, REPL, debugger, LSP, formatter</li>
+  <li><b>sb build</b> — compile to a standalone native binary</li>
+  <li><b>shimgui</b> — real GTK windows, labels, buttons, inputs</li>
+  <li><b>serve / fetch</b> — web server + http client, built in</li>
+  <li><b>sb pack deb|rpm|exe</b> — ship it as installers</li>
+  <li><b>std/</b> — maths, lists, crypto, datetime, fp, ui, shimtorch</li>
+</ul>
+
+<p class="note">psst — every statement ends with a dot. that's the whole rule.
+<svg class="arrow-doodle" width="60" height="24" viewBox="0 0 60 24" fill="none">
+  <path d="M4 4 C 20 20, 40 20, 54 10" stroke="#2b2a33" stroke-width="2" stroke-linecap="round"/>
+  <path d="M54 10 L46 8 M54 10 L50 17" stroke="#2b2a33" stroke-width="2" stroke-linecap="round"/>
+</svg>
+</p>
+
+<footer>
+  made with <span class="heart">♥</span> and sb by Shimba-crypto — MIT, go nuts.
+  <svg class="scribble" width="120" height="16" viewBox="0 0 120 16" fill="none">
+    <path d="M6 10 C 30 4, 50 14, 70 8 S 110 6, 116 10" stroke="#5a5866" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</footer>
+
+</div>
+</body>
+</html>
