@@ -1,0 +1,94 @@
+SB
+# ============================================================
+# uiapp.sb — event-driven GUI toolkit for ShimbaBomb
+#
+#   define render with state as        <- state is a map
+#       give back ui_page with "App" and ...html...
+#   end
+#   define on_event with action and state as
+#       if action is "inc" then
+#           set state["count"] to state["count"] plus 1.
+#       end
+#   end
+#   ui_run with "My App" and 8091 and render and on_event and state.
+#
+#   Clicks/buttons become GET ?action=NAME — the toolkit parses the
+#   event, calls on_event, re-renders through render, serves HTML.
+# ============================================================
+
+pls bring ui.
+
+# ---------- event parsing ----------
+
+define uiapp_query with path and key as
+    # extract key's value from "/?a=b&k=v"
+    set parts to split with path and "?".
+    set qlen to length with parts.
+    if qlen is less than 2 then
+        give back "".
+    end
+    set query to item with 1 and parts.
+    set pairs to split with query and "&".
+    loop pair through pairs then
+        set kv to split with pair and "=".
+        set klen to length with kv.
+        if klen is greater than 1 then
+            set k to item with 0 and kv.
+            if k is key then
+                set v to item with 1 and kv.
+                set v to replace with v and "+" and " ".
+                set v to replace with v and "%20" and " ".
+                give back v.
+            end
+        end
+    end
+    give back "".
+end.
+
+define uiapp_action_of with path as
+    give back uiapp_query with path and "action".
+end.
+
+# ---------- widget helpers (event-aware) ----------
+
+define uiact_button with label and action as
+    give back "<a class='btn' href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define uiact_button_ghost with label and action as
+    give back "<a class='btn ghost' href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define uiact_link with label and action as
+    give back "<a href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define uiact_form with label and action and field_name as
+    set f to "<form action='/' method='get' style='display:flex;gap:8px'>".
+    set f to f plus "<input type='hidden' name='action' value='" plus action plus "'>".
+    set f to f plus "<input type='text' name='" plus field_name plus "' placeholder='" plus label plus "' style='min-height:44px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--overlay);color:var(--text);flex:1'>".
+    set f to f plus "<button class='btn' type='submit'>" plus label plus "</button></form>".
+    give back f.
+end.
+
+# ---------- the runtime ----------
+
+# ui_run: blocks (like window). Opens the default browser automatically.
+# render_fn and event_fn take NO arguments — read/write your app state
+# through global variables (closures capture the global scope).
+define ui_run with title and port and render_fn and event_fn as
+
+    define inner_handler with req as
+        set path to req's path.
+        set action to uiapp_action_of with path.
+        if action then
+            event_fn with action.
+        end
+        give back render_fn with.
+    end
+
+    set url to "http://localhost:" plus port.
+    run with "xdg-open " plus url plus " >/dev/null 2>&1 &".
+    say "ui: " plus title plus " at " plus url.
+    serve with port and inner_handler.
+end.

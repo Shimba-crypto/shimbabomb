@@ -1,0 +1,15 @@
+SB
+
+# std/files — helpers for files
+
+define read_lines with path as
+    set content to read_file with path.
+    give back split with content and "\n".
+end
+
+define ensure_file with path and fallback as
+    if file_exists with path is equal to false then
+        write_file with path and fallback.
+    end
+    give back read_file with path.
+end

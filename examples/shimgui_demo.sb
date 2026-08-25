@@ -1,0 +1,76 @@
+SB
+# shimgui_demo — ShimGUI toolkit showcase
+# glass-liquid design, English-like API, event loop
+
+pls bring shimgui.
+
+set state to map with "count" and 0 and "name" and "World".
+
+define render as
+    set title to shimgui_heading with "ShimGUI Demo".
+    set subtitle to shimgui_label with "SB's own Tk — glass, liquid, native.".
+
+    set s1 to shimgui_stat with "COUNT" and state["count"] and "clicks" and true.
+    set s2 to shimgui_stat with "HELLO" and state["name"] and "shimgui" and true.
+
+    set grid to shimgui_grid_open with.
+    set grid to grid plus s1 plus s2 plus shimgui_grid_close with.
+
+    set b1 to shimgui_button with "+ 1" and "inc".
+    set b2 to shimgui_button_ghost with "- 1" and "dec".
+    set b3 to shimgui_button_ghost with "reset" and "reset".
+
+    set row to "<div style='display:flex;gap:8px;margin:16px 0'>" plus b1 plus b2 plus b3 plus "</div>".
+
+    set meter to shimgui_meter with "Progress" and state["count"] times 10 and state["count"] plus "/10".
+
+    set form to shimgui_input with "Greet" and "greet" and "name".
+
+    set badge_ok to shimgui_badge with "ok" and "ok".
+    set badge_warn to shimgui_badge with "warn" and "warn".
+
+    set badges to "<div style='display:flex;gap:8px;margin:12px 0'>" plus badge_ok plus badge_warn plus shimgui_icon with "⚡" and "pink" plus "</div>".
+
+    set body to title plus subtitle plus grid plus row plus meter plus form plus badges.
+    give back shimgui_page with "ShimGUI Demo" and body.
+end
+
+define on_event with action as
+    if action is "inc" then
+        set state["count"] to state["count"] plus 1.
+    end
+    if action is "dec" then
+        set state["count"] to state["count"] minus 1.
+    end
+    if action is "reset" then
+        set state["count"] to 0.
+    end
+    if action is "greet" then
+        # query param "name" holds the input value — fetch via last request?
+        # shimgui passes action only; for forms, read ?name= value via query
+        # fallback: keep World if empty
+        set state["name"] to "Friend".
+    end
+end
+
+# handle form with actual query param
+define handler with req as
+    set path to req's path.
+    set action to shimgui_action_of with path.
+    if action is "greet" then
+        set nm to shimgui_query with path and "name".
+        if nm then
+            set state["name"] to nm.
+        end
+    otherwise
+        if action then
+            on_event with action.
+        end
+    end
+    give back render with.
+end
+
+set port to 8089.
+say "ShimGUI demo at http://localhost:" plus port.
+run with "xdg-open http://localhost:" plus port plus " >/dev/null 2>&1 &".
+serve with port and handler.

@@ -1,0 +1,31 @@
+{
+  "name": "shimbabomb-vscode",
+  "displayName": "ShimbaBomb Language Support",
+  "description": "SB language: syntax, diagnostics, completion via `sb lsp`",
+  "version": "1.9.0",
+  "publisher": "shimbabomb",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:shimbabomb"],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "shimbabomb",
+        "aliases": ["ShimbaBomb", "sb"],
+        "extensions": [".sb"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "shimbabomb",
+        "scopeName": "source.shimbabomb",
+        "path": "./sb.tmLanguage.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

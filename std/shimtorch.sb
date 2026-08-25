@@ -1,0 +1,223 @@
+SB
+# ============================================================
+# ShimTorch — tiny autograd NN library in pure SB, on NOB
+#
+#   Ops are PURE: they return map with "data" and result-nob-array
+#   and "entries" and list-of-tape-entries. The CALLER appends
+#   entries to its own tape (bind tape to a variable first).
+#
+#   backward(tape, seedid) walks entries in reverse and returns
+#   grads: map id -> nob array.
+# ============================================================
+
+pls bring nob.
+
+define st_new_tape as
+    give back list with.
+end.
+
+# ---------- forward ops (pure builders) ----------
+
+# pred = matmul(a, b)
+define st_matmul with aid and adata and bid and bdata and outname as
+    set outd to nob_matmul with adata and bdata.
+    set e to map with "op" and "MATMUL" and "out" and outname and "a" and aid and "b" and bid.
+    set es to list with e.
+    give back map with "data" and outd and "entries" and es.
+end.
+
+# elementwise add
+define st_add with aid and adata and bid and bdata and outname as
+    set outd to nob_add with adata and bdata.
+    set e to map with "op" and "ADD" and "out" and outname and "a" and aid and "b" and bid.
+    set es to list with e.
+    give back map with "data" and outd and "entries" and es.
+end.
+
+# elementwise mul
+define st_mul with aid and adata and bid and bdata and outname as
+    set outd to nob_mul with adata and bdata.
+    set e to map with "op" and "MUL" and "out" and outname and "a" and aid and "b" and bid.
+    set es to list with e.
+    give back map with "data" and outd and "entries" and es.
+end.
+
+# relu
+define st_relu with aid and adata and outname as
+    set outd to list with.
+    loop v through adata["data"] then
+        if v is greater than 0 then
+            add_to with outd and v.
+        otherwise
+            add_to with outd and 0.
+        end
+    end
+    set shp to adata["shape"].
+    set outt to map with "shape" and shp and "data" and outd.
+    set e to map with "op" and "RELU" and "out" and outname and "a" and aid and "b" and "" and "aux" and outt.
+    set es to list with e.
+    give back map with "data" and outt and "entries" and es.
+end.
+
+# scale by constant
+define st_scale with aid and adata and s and outname as
+    set outd to nob_scale with adata and s.
+    set e to map with "op" and "SCALE" and "out" and outname and "a" and aid and "b" and "" and "aux" and s.
+    set es to list with e.
+    give back map with "data" and outd and "entries" and es.
+end.
+
+# MSE loss = mean((pred - target)^2)
+# returns map with "loss" and number and "topid" and "@loss" and "entries" and [sub,sq,scale]
+define st_mse with predid and preddata and tgtid and tgtdata as
+    set diff to nob_sub with preddata and tgtdata.
+    set diffe to map with "op" and "SUB" and "out" and "@diff" and "a" and predid and "b" and tgtid.
+    set sqd to nob_mul with diff and diff.
+    set sqe to map with "op" and "MUL" and "out" and "@sq" and "a" and "@diff" and "b" and "@diff".
+    set n to length with sqd["data"].
+    set total to 0.
+    loop v through sqd["data"] then
+        set total to total plus v.
+    end
+    set meanv to total divided by n.
+    set inv to 1 divided by n.
+    set meane to map with "op" and "SCALE" and "out" and "@loss" and "a" and "@sq" and "b" and "" and "aux" and inv.
+    set es to list with diffe and sqe and meane.
+    set extra to map with "@diff" and diff and "@sq" and sqd.
+    give back map with "loss" and meanv and "topid" and "@loss" and "entries" and es and "extra" and extra.
+end.
+
+# ---------- backward ----------
+# shape_lookup: map id -> nob data of that value (for matmul transposes / relu mask)
+
+define st_backward with tape and seedid and lookup as
+    set grads to map with.
+    set ones1 to nob_full with 1 and 1 and 1.
+    set grads[seedid] to ones1.
+    set tlen to length with tape.
+    set nidx to tlen minus 1.
+    count i from 0 to nidx then
+        set idx to nidx minus i.
+        set e to item with idx and tape.
+        set opn to e["op"].
+        set oid to e["out"].
+        set gout to grads[oid].
+        if gout is false then
+            # no gradient reached this node — skip
+            set gout to 0.
+        end
+        match opn with "ADD" then
+            set aid2 to e["a"].
+            set bid2 to e["b"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and gout.
+            otherwise
+                set grads[aid2] to gout.
+            end
+            set gb to grads[bid2].
+            if gb then
+                set grads[bid2] to nob_add with gb and gout.
+            otherwise
+                set grads[bid2] to gout.
+            end
+        with "SUB" then
+            set ng to nob_scale with gout and -1.
+            set bid2 to e["b"].
+            set gb to grads[bid2].
+            if gb then
+                set grads[bid2] to nob_add with gb and ng.
+            otherwise
+                set grads[bid2] to ng.
+            end
+            set aid2 to e["a"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and gout.
+            otherwise
+                set grads[aid2] to gout.
+            end
+        with "MUL" then
+            set adata to lookup[e["a"]].
+            set bdata to lookup[e["b"]].
+            set term1 to nob_mul with gout and bdata.
+            set aid2 to e["a"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and term1.
+            otherwise
+                set grads[aid2] to term1.
+            end
+            set term2 to nob_mul with gout and adata.
+            set bid2 to e["b"].
+            set gb to grads[bid2].
+            if gb then
+                set grads[bid2] to nob_add with gb and term2.
+            otherwise
+                set grads[bid2] to term2.
+            end
+        with "MATMUL" then
+            set adata to lookup[e["a"]].
+            set bdata to lookup[e["b"]].
+            # dA = dOut · Bᵀ   (nob_matmul does plain a·b, so transpose explicitly)
+            set bt to nob_transpose with bdata.
+            set term1 to nob_matmul with gout and bt.
+            set aid2 to e["a"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and term1.
+            otherwise
+                set grads[aid2] to term1.
+            end
+            # dB = Aᵀ · dOut
+            set at to nob_transpose with adata.
+            set term2 to nob_matmul with at and gout.
+            set bid2 to e["b"].
+            set gb to grads[bid2].
+            if gb then
+                set grads[bid2] to nob_add with gb and term2.
+            otherwise
+                set grads[bid2] to term2.
+            end
+        with "RELU" then
+            set mask to e["aux"].
+            set md to mask["data"].
+            set gd to list with.
+            loop mv through md then
+                if mv is greater than 0 then
+                    add_to with gd and 1.
+                otherwise
+                    add_to with gd and 0.
+                end
+            end
+            set maskt to map with "shape" and mask["shape"] and "data" and gd.
+            set term to nob_mul with gout and maskt.
+            set aid2 to e["a"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and term.
+            otherwise
+                set grads[aid2] to term.
+            end
+        with "SCALE" then
+            set s to e["aux"].
+            set ng to nob_scale with gout and s.
+            set aid2 to e["a"].
+            set ga to grads[aid2].
+            if ga then
+                set grads[aid2] to nob_add with ga and ng.
+            otherwise
+                set grads[aid2] to ng.
+            end
+        end
+    end
+    give back grads.
+end.
+
+# ---------- optimizer ----------
+
+define st_sgd with data and grad and lr as
+    set neg to 0 minus lr.
+    set glr to nob_scale with grad and neg.
+    give back nob_add with data and glr.
+end.

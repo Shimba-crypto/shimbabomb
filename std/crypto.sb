@@ -1,0 +1,21 @@
+SB
+# crypto — hashing via system tools
+
+define md5 with text as
+    set out to run with "printf '%s' '" plus text plus "' | md5sum | tr -d ' ' | cut -c1-32".
+    give back trim with out.
+end
+
+define sha256 with text as
+    set out to run with "printf '%s' '" plus text plus "' | sha256sum | tr -d ' ' | cut -c1-64".
+    give back trim with out.
+end
+
+define random_hex with length as
+    set out to run with "head -c200 /dev/urandom | sha256sum | tr -d ' ' | cut -c1-" plus to_string with length.
+    give back trim with out.
+end
+
+define uuid as
+    give back trim with run with "cat /proc/sys/kernel/random/uuid 2>/dev/null || echo none".
+end

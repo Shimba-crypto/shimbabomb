@@ -1,0 +1,88 @@
+SB
+# ============================================================
+# dashboard.sb — ShimbaBomb UI showcase (std/ui.sb + DESIGN.md)
+# ============================================================
+
+pls bring ui.
+pls bring maths.
+
+# ---------- data ----------
+set cpu_vals to list with 42.
+set mem_vals to list with 61.
+set disk_vals to list with 74.
+
+set services to list with "api" and "worker" and "cache".
+set statuses to list with "ok" and "ok" and "warn".
+
+set jobs to list with "build #412" and "test suite" and "deploy edge" and "backup db".
+set job_states to list with "passing" and "passing" and "running" and "queued".
+
+# ---------- stat tiles ----------
+set body to "".
+
+set c1 to ui_stat with "CPU LOAD" and "42%" and "+2.1% vs 1h" and true.
+set c2 to ui_stat with "MEMORY" and "6.1G" and "-0.4% vs 1h" and false.
+set c3 to ui_stat with "REQUESTS/MIN" and "1 284" and "+18%" and true.
+set g to ui_grid_open with.
+set body to body plus g plus c1 plus c2 plus c3 plus ui_grid_close with.
+
+say "".
+
+# ---------- gauges ----------
+set body to body plus "<div style='height:16px'></div>".
+set m1 to ui_meter with "cpu" and 42 and "42%".
+set m2 to ui_meter with "memory" and 61 and "6.1 / 10 GB".
+set m3 to ui_meter with "disk" and 74 and "740 / 1000 GB".
+set mg to ui_grid_open with.
+set body to body plus mg plus m1 plus m2 plus m3 plus ui_grid_close with.
+
+# ---------- service rows ----------
+set body to body plus "<div style='height:16px'></div>".
+set rows_open to ui_rows_open with.
+set body to body plus rows_open.
+count i from 0 to 2 then
+    set svc to item with i and services.
+    set st to item with i and statuses.
+    set badge to ui_badge with st and st.
+    set row to ui_row with svc and badge.
+    set body to body plus row.
+end
+set rows_close to ui_rows_close with.
+set body to body plus rows_close.
+
+# ---------- jobs ----------
+set body to body plus "<div style='height:16px'></div>".
+set jopen to ui_rows_open with.
+set body to body plus jopen.
+count i from 0 to 3 then
+    set job to item with i and jobs.
+    set js to item with i and job_states.
+    set tone to "ok".
+    if js is "running" then
+        set tone to "warn".
+    end
+    if js is "queued" then
+        set tone to "err".
+    end
+    set b2 to ui_badge with js and tone.
+    set jr to ui_row with job and b2.
+    set body to body plus jr.
+end
+set jclose to ui_rows_close with.
+set body to body plus jclose.
+
+# ---------- details ----------
+set body to body plus "<div style='height:16px'></div>".
+set kvo to ui_kv_open with.
+set p1 to ui_kv_pair with "runtime" and "ShimbaBomb v1.8.0".
+set p2 to ui_kv_pair with "renderer" and "WebKit (GTK)".
+set p3 to ui_kv_pair with "theme" and "DESIGN.md dark-technical".
+set body to body plus kvo plus p1 plus p2 plus p3 plus ui_kv_close with.
+
+set actions to ui_button with "Refresh" and "#" plus " " plus ui_button_ghost with "Docs" and "#".
+set body to body plus "<div style='height:24px'></div>" plus actions.
+
+# ---------- render ----------
+set html to ui_page with "Mission Control" and body.
+write_file with "/tmp/opencode/dashboard.html" and html.
+window with "Mission Control — ShimbaBomb" and html.

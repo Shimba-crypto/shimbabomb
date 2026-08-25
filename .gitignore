@@ -1,0 +1,9 @@
+build/
+*.o
+sb_modules/
+Output/
+*.deb
+*.rpm
+*.exe
+.env
+.DS_Store

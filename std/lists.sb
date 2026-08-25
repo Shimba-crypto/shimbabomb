@@ -1,0 +1,22 @@
+SB
+
+# std/lists — helpers for lists
+
+define sum with xs as
+    set s to 0.
+    loop x through xs then
+        set s to s plus x.
+    end
+    give back s.
+end
+
+define avg with xs as
+    if length with xs is equal to 0 then
+        give back 0.
+    end
+    give back sum with xs divided by length with xs.
+end
+
+define contains_item with xs and v as
+    give back has with xs and v.
+end

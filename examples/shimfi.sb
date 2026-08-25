@@ -1,0 +1,188 @@
+SB
+# shimfi — wifi tool written in ShimbaBomb
+#   sb shimfi.sb              interactive menu
+#   sb shimfi.sb scan         quick scan
+#   sb shimfi.sb status       current connection
+
+# ---------- helpers ----------
+
+define scan_raw as
+    give back run with "nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null".
+end
+
+define bars with signal as
+    set s to to_number with signal.
+    set n to 1.
+    if s is greater than 75 then
+        set n to 4.
+    otherwise
+        if s is greater than 50 then
+            set n to 3.
+        otherwise
+            if s is greater than 25 then
+                set n to 2.
+            end
+        end
+    end
+    set b to "".
+    count i from 1 to n then
+        set b to b plus "#".
+    end
+    give back b.
+end
+
+define sort_nets with nets as
+    # bubble sort by signal, strongest first
+    set n to length with nets.
+    set arr to nets.
+    set i to 0.
+    while i is less than n minus 1 then
+        set j to 0.
+        while j is less than n minus i minus 1 then
+            set a to item with j and arr.
+            set b2 to item with j plus 1 and arr.
+            set asig to to_number with a's signal.
+            set bsig to to_number with b2's signal.
+            if asig is less than bsig then
+                set tmpv to a.
+                set arr[j] to b2.
+                set arr[j plus 1] to tmpv.
+            end
+            set j to j plus 1.
+        end
+        set i to i plus 1.
+    end
+    give back arr.
+end
+
+define parse_networks with raw as
+    set lines to split with raw and "\n".
+    set nets to list with.
+    loop line through lines then
+        set plen to length with line.
+        if plen is greater than 0 then
+            set parts to split with line and ":".
+            set pcount to length with parts.
+            if pcount is greater than 2 then
+                # signal + sec are always the LAST two fields (ssid may contain colons)
+                set sig_text to item with pcount minus 2 and parts.
+                set sec to item with pcount minus 1 and parts.
+                set ssid to item with 0 and parts.
+                count k from 1 to pcount minus 3 then
+                    set ssid to ssid plus ":" plus item with k and parts.
+                end
+                set sig to to_number with sig_text.
+                if ssid then
+                    add_to with nets and map with "name" and ssid and "signal" and sig and "sec" and sec.
+                end
+            end
+        end
+    end
+    give back sort_nets with nets.
+end
+
+# ---------- commands ----------
+
+define scan as
+    say "scanning...".
+    set raw to scan_raw with.
+    if raw then
+        set nets to parse_networks with raw.
+        set howmany to length with nets.
+        say howmany plus " networks found:".
+        say "".
+        loop net through nets then
+            set nm to net's name.
+            set sig to net's signal.
+            set sec2 to net's sec.
+            if sec2 then
+                set lock to sec2.
+            otherwise
+                set lock to "open".
+            end
+            set bl to bars with sig.
+            say "  [" plus bl plus "] " plus sig plus "%  " plus nm plus "  (" plus lock plus ")".
+        end
+    otherwise
+        say "no wifi results (wifi off? no adapter?)".
+    end
+end
+
+define status as
+    set raw to run with "nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null".
+    set found to false.
+    set lines to split with raw and "\n".
+    loop line through lines then
+        set parts to split with line and ":".
+        set active to item with 0 and parts.
+        if active is "yes" then
+            set found to true.
+            set ssid to item with 1 and parts.
+            set sig to item with 2 and parts.
+            say "connected: " plus ssid plus "  (" plus sig plus "%)".
+            set gw to trim with run with "ip route | awk '/default/{print $3; exit}'".
+            say "gateway:   " plus gw.
+            set ipaddr to trim with run with "hostname -I | awk '{print $1}'".
+            say "your ip:   " plus ipaddr.
+        end
+    end
+    if found is false then
+        say "not connected to any wifi."
+    end
+end
+
+define join_net with ssid and password as
+    say "connecting to " plus ssid plus "...".
+    set cmd to "nmcli dev wifi connect '" plus ssid plus "'".
+    if password then
+        set cmd to "nmcli dev wifi connect '" plus ssid plus "' password '" plus password plus "'".
+    end
+    set out to run with cmd.
+    if out then
+        say out.
+    end
+end
+
+define disconnect as
+    set iface to trim with run with "nmcli -t -f DEVICE,TYPE dev status | grep wifi | head -1 | cut -d: -f1".
+    if iface then
+        say "disconnecting " plus iface plus "...".
+        say run with "nmcli dev disconnect " plus iface.
+    otherwise
+        say "no wifi device found."
+    end
+end
+
+define ask_join as
+    set ssid to input with "ssid: ".
+    set pass to input with "password (empty for open): ".
+    join_net with ssid and pass.
+end
+
+# ---------- main ----------
+
+define menu as
+    say "shimfi v1 — sb wifi tool".
+    set going to true.
+    while going then
+        say "".
+        say "[1] scan  [2] status  [3] join  [4] disconnect  [5] quit".
+        set choice to input with "shimfi> ".
+        match choice with "1" then
+            scan with.
+        with "2" then
+            status with.
+        with "3" then
+            ask_join with.
+        with "4" then
+            disconnect with.
+        with _ then
+            say "bye!".
+            set going to false.
+        end
+    end
+end
+
+set argmode to trim with run with "true".
+say "shimfi v1 — pick an option".
+menu with.

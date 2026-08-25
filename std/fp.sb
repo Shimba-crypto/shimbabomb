@@ -1,0 +1,159 @@
+SB
+# ============================================================
+# fp.sb — functional toolkit for ShimbaBomb
+#   Pure SB, no natives, functions are first-class values.
+#
+#   Core: map_with / filter_with / reduce_with / each_with
+#   Slice: take_with / drop_with / rev / chunk
+#   Flow: pipe / compose / curry
+#
+#   All loops are `loop x through xs`, all calls use
+#   `f with a and b` or `f(a, b)` — both forms work.
+#   Errors are structured: `try ... catch e` gives e["message"] etc.
+# ============================================================
+
+## map_with(items, fn) -> new list
+## Applies fn(item) to every element, collects results.
+## Example: map_with with list with 1 and 2 and fn with x as give back x times 2. end -> [2, 4]
+define map_with with items and f as
+    set out to list with.
+    loop it through items then
+        set r to f with it.
+        add_to with out and r.
+    end
+    give back out.
+end.
+
+## filter_with(items, pred) -> new list
+## Keeps items where pred(item) is truthy.
+define filter_with with items and pred as
+    set out to list with.
+    loop it through items then
+        set keep to pred with it.
+        if keep then
+            add_to with out and it.
+        end
+    end
+    give back out.
+end.
+
+## reduce_with(items, f, init) -> value
+## Folds left: f(acc, item) over items starting from init.
+## Example: reduce_with with list with 1 and 2 and 3 and fn with a and b as give back a plus b. end and 0 -> 6
+define reduce_with with items and f and init as
+    set acc to init.
+    loop it through items then
+        set acc to f with acc and it.
+    end
+    give back acc.
+end.
+
+## each_with(items, f) -> nothing
+## Runs f(item) for side effects, discards results.
+define each_with with items and f as
+    loop it through items then
+        f with it.
+    end
+    give back nothing.
+end.
+
+## take_with(items, n) -> first n items
+define take_with with items and n as
+    if n is less than 1 then
+        give back list with.
+    end
+    set out to list with.
+    set i to 0.
+    loop it through items then
+        if i is greater than n minus 1 then
+            break.
+        end
+        add_to with out and it.
+        set i to i plus 1.
+    end
+    give back out.
+end.
+
+## drop_with(items, n) -> items without first n
+define drop_with with items and n as
+    if n is less than 1 then
+        give back items.
+    end
+    set out to list with.
+    set i to 0.
+    loop it through items then
+        if i is greater than n minus 1 then
+            add_to with out and it.
+        end
+        set i to i plus 1.
+    end
+    give back out.
+end.
+
+## rev(items) -> reversed list
+define rev with items as
+    set out to list with.
+    set n to length with items.
+    count i from 0 to n minus 1 then
+        set idx to n minus 1 minus i.
+        add_to with out and item with idx and items.
+    end
+    give back out.
+end.
+
+## chunk(items, size) -> list of chunks
+define chunk with items and size as
+    set out to list with.
+    set cur to list with.
+    set c to 0.
+    loop it through items then
+        add_to with cur and it.
+        set c to c plus 1.
+        if c is size then
+            add_to with out and cur.
+            set cur to list with.
+            set c to 0.
+        end
+    end
+    if c is greater than 0 then
+        add_to with out and cur.
+    end
+    give back out.
+end.
+
+## uniq(items) -> deduplicated list (keeps first occurrence)
+define uniq with items as
+    set out to list with.
+    loop it through items then
+        if has with out and it then
+        otherwise
+            add_to with out and it.
+        end
+    end
+    give back out.
+end.
+
+## pipe(value, fns...) -> threaded value
+## pipe with 5 and list with fn with x as give back x plus 1. end and fn with x as give back x times 2. end -> 12
+define pipe_with with value and fns as
+    set acc to value.
+    loop f through fns then
+        set acc to f with acc.
+    end
+    give back acc.
+end.
+
+## compose(f, g) -> fn(x) = f(g(x))
+define compose with f and g as
+    give back fn with x as
+        set tmp to g with x.
+        give back f with tmp.
+    end.
+end.
+
+## curry(f, fixed) -> fn(rest) = f(fixed, rest)
+define curry with f and fixed as
+    give back fn with x as
+        give back f with fixed and x.
+    end.
+end.

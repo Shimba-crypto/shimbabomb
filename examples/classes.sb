@@ -1,0 +1,16 @@
+SB
+
+class Dog with name and age
+    method bark as
+        say self's name plus " says woof!".
+    end
+    method birthday as
+        say self's name plus " is now " plus self's age.
+    end
+end
+set rex to new Dog with "Rex" and 3.
+say rex's name.
+say rex's age.
+rex's bark.
+set buddy to new Dog with "Buddy" and 7.
+buddy's birthday.

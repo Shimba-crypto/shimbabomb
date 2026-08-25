@@ -1,0 +1,17 @@
+SB
+
+set x to 10.
+set y to 3.
+say "x is " plus x.
+say "y is " plus y.
+say "x plus y is " plus x plus y.
+say "x times y is " plus x times y.
+define double with n as
+    give back n times 2.
+end
+say "double of 7 is " plus double with 7.
+if x is greater than 5 then
+    say "x is big".
+otherwise
+    say "x is small".
+end

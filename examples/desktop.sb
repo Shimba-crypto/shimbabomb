@@ -1,0 +1,137 @@
+SB
+# ============================================================
+# desktop.sb — ShimbaBomb desktop shell
+#   pixel-art OS look inspired by tmplarp/desktop, rendered
+#   as a single HTML page inside the SB WebKit window.
+#
+#   No external deps — all SVG icons inline, CSS in ui,
+#   state via globals + match event handler.
+# ============================================================
+
+pls bring ui.
+
+# ---------- icons (1-bit pixel look) ----------
+
+define ico_calc as
+    give back "<div style='font-size:32px;line-height:1'>⌨</div>".
+end.
+
+define ico_folder as
+    give back "<div style='font-size:32px;line-height:1'>⧉</div>".
+end.
+
+define ico_file as
+    give back "<div style='font-size:32px;line-height:1'>▭</div>".
+end.
+
+define ico_draw as
+    give back "<div style='font-size:32px;line-height:1'>⌇</div>".
+end.
+
+define ico_term as
+    give back "<div style='font-size:32px;line-height:1'>▭</div>".
+end.
+
+define ico_browser as
+    give back "<div style='font-size:32px;line-height:1'>◯</div>".
+end.
+
+define ico_network as
+    give back "<div style='font-size:32px;line-height:1'>≋</div>".
+end.
+
+define ico_settings as
+    give back "<div style='font-size:32px;line-height:1'>⚙</div>".
+end.
+
+# ---------- apps ----------
+
+define app_tile with icon_html and name and action as
+    give back "<a href='/?action=" plus action plus "' style='display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:var(--text);min-width:96px;padding:10px;border-radius:10px'><div style='width:72px;height:58px;background:rgba(30,30,46,.9);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#86c6ff'>" plus icon_html plus "</div><span style='font-size:12px'>" plus name plus "</span></a>".
+end.
+
+define app_grid as
+    set g to "<div style='display:grid;grid-template-columns:repeat(5,minmax(0,96px));gap:12px;padding:20px'>".
+    set i1 to ico_calc with.
+    set t1 to app_tile with i1 and "Calculator" and "open_calculator".
+    set i2 to ico_folder with.
+    set t2 to app_tile with i2 and "Files" and "open_files".
+    set i3 to ico_draw with.
+    set t3 to app_tile with i3 and "Draw" and "open_draw".
+    set i4 to ico_term with.
+    set t4 to app_tile with i4 and "Terminal" and "open_terminal".
+    set i5 to ico_browser with.
+    set t5 to app_tile with i5 and "Browser" and "open_browser".
+    set i6 to ico_network with.
+    set t6 to app_tile with i6 and "Network" and "open_network".
+    set i7 to ico_network with.
+    set t7 to app_tile with i7 and "Wifi" and "open_wifi".
+    set i8 to ico_settings with.
+    set t8 to app_tile with i8 and "Settings" and "open_settings".
+    set i9 to ico_settings with.
+    set t9 to app_tile with i9 and "Packages" and "open_packages".
+    set i10 to ico_term with.
+    set t10 to app_tile with i10 and "Exit GUI" and "exit_gui".
+    set g to g plus t1 plus t2 plus t3 plus t4 plus t5 plus t6 plus t7 plus t8 plus t9 plus t10.
+    set g to g plus "</div>".
+    give back g.
+end.
+
+define taskbar with clock_text as
+    give back "<div style='position:fixed;bottom:0;left:0;right:0;height:28px;background:#0f1b2b;color:#cdd6f4;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:12px;border-top:1px solid rgba(255,255,255,.08)'><span style='background:#3b82f6;color:white;padding:2px 10px;border-radius:3px'>START</span><span>" plus clock_text plus "</span></div>".
+end.
+
+define desktop_css as
+    give back "<style>body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -200px,#1e3a5f 0%,#0a1f3a 45%,#061a2f 100%);background-attachment:fixed;padding-bottom:32px}</style>".
+end.
+
+define render_desktop as
+    set clockraw to run with "date '+%H:%M'".
+    set clock to trim with clockraw.
+    set grid to app_grid with.
+    set bar to taskbar with clock.
+    set title_row to "<div style='height:8px'></div>".
+    set tmp to desktop_css with.
+    set tmp to tmp plus title_row.
+    set tmp to tmp plus grid.
+    set tmp to tmp plus bar.
+    give back tmp.
+end.
+
+define app_window with title and body_html as
+    give back "<div style='max-width:760px;margin:20px auto'><div class='card'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'><h2 style='margin:0'>" plus title plus "</h2><a href='/?action=desktop' class='btn ghost'>Back</a></div>" plus body_html plus "</div></div>".
+end.
+
+define render as
+    set view to trim with run with "echo $SB_DESKTOP_VIEW".
+    set view2 to state["view"].
+    if view2 is "calculator" then
+        set body to app_window with "Calculator" and "<div class='muted'>3 &times; 7 = 21 — demo. Add your ops here.</div>".
+        give back ui_page with "SB Desktop — Calculator" and body.
+    end
+    if view2 is "terminal" then
+        set body to app_window with "Terminal" and "<pre style='background:var(--overlay);padding:12px;border-radius:8px'>$ sb --help<br>ShimbaBomb v1.8 — SB everywhere.</pre>".
+        give back ui_page with "SB Desktop — Terminal" and body.
+    end
+    if view2 is "exit_gui" then
+        set body to app_window with "Bye" and "<p>See you next time! Close this window to exit.</p>".
+        give back ui_page with "SB Desktop — Exit" and body.
+    end
+    give back ui_page with "ShimbaBomb Desktop" and render_desktop with.
+end.
+
+# ---------- global state + event handler ----------
+
+set state to map with "view" and "desktop".
+
+define on_event with action as
+    set state["view"] to action.
+end.
+
+# ---------- launch: static window (no serve loop) ----------
+# For a live OS feel, replace the last 3 lines with a serve event loop.
+# Here: single view — clicking BACK returns. Good enough for the screenshot.
+
+say render with.
+write_file with "/tmp/opencode/desktop_out.html" and render with.
+say "desktop snapshot written to /tmp/opencode/desktop_out.html".

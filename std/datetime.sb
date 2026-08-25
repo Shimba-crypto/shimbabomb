@@ -1,0 +1,34 @@
+SB
+# datetime — date and time helpers
+
+define now as
+    give back trim with run with "date '+%Y-%m-%d %H:%M:%S'".
+end
+
+define today as
+    give back trim with run with "date '+%Y-%m-%d'".
+end
+
+define year_now as
+    give back to_number with trim with run with "date '+%Y'".
+end
+
+define month_now as
+    give back to_number with trim with run with "date '+%m'".
+end
+
+define day_now as
+    give back to_number with trim with run with "date '+%d'".
+end
+
+define weekday with date_text as
+    give back trim with run with "date -d '" plus date_text plus "' '+%A' 2>/dev/null || echo unknown".
+end
+
+define timestamp as
+    give back to_number with trim with run with "date '+%s'".
+end
+
+define clock_now as
+    give back trim with run with "date '+%H:%M:%S'".
+end

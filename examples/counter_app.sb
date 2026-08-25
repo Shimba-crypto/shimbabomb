@@ -1,0 +1,44 @@
+SB
+# counter_app — click-counter GUI in pure ShimbaBomb
+# state lives in a GLOBAL map; handlers close over it (no copies).
+pls bring ui.
+pls bring uiapp.
+
+set state to map with "count" and 0.
+
+define render as
+    set v to state["count"].
+    set c to ui_stat with "COUNT" and v and "clicks" and true.
+    set g to ui_grid_open with.
+    set b1 to uiact_button with "+ 1" and "inc".
+    set b2 to uiact_button_ghost with "- 1" and "dec".
+    set b3 to uiact_button_ghost with "reset" and "reset".
+    set body to g plus c plus ui_grid_close with.
+    set body to body plus "<div style='height:16px'></div>" plus b1 plus " " plus b2 plus " " plus b3.
+    give back ui_page with "Counter" and body.
+end
+
+define on_event with action as
+    if action is "inc" then
+        set state["count"] to state["count"] plus 1.
+    end
+    if action is "dec" then
+        set state["count"] to state["count"] minus 1.
+    end
+    if action is "reset" then
+        set state["count"] to 0.
+    end
+end
+
+# headless test mode: SB_NO_BROWSER=1 skips xdg-open
+set nob to trim with run with "echo $SB_NO_BROWSER".
+if nob is "1" then
+    define quiet_handler with req as
+        set action to uiapp_action_of with req's path.
+        on_event with action.
+        give back render with.
+    end
+    serve with 8096 and quiet_handler.
+otherwise
+    ui_run with "Counter" and 8096 and render and on_event.
+end

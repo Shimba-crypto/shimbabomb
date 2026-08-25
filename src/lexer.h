@@ -1,0 +1,44 @@
+#ifndef SB_LEXER_H
+#define SB_LEXER_H
+
+typedef enum {
+    TOKEN_NUMBER, TOKEN_STRING, TOKEN_IDENTIFIER,
+
+    TOKEN_SET, TOKEN_TO, TOKEN_DEFINE, TOKEN_WITH, TOKEN_AND, TOKEN_AS,
+    TOKEN_IF, TOKEN_THEN, TOKEN_OTHERWISE, TOKEN_END,
+    TOKEN_COUNT, TOKEN_FROM, TOKEN_SAY, TOKEN_GIVE, TOKEN_BACK,
+    TOKEN_TRUE, TOKEN_FALSE, TOKEN_NOT, TOKEN_IS,
+    TOKEN_LESS, TOKEN_GREATER, TOKEN_EQUAL, TOKEN_NOTEQ, TOKEN_MOD, TOKEN_INTDIV, TOKEN_OR,
+    TOKEN_PLS, TOKEN_BRING,
+    TOKEN_LOOP, TOKEN_THROUGH,
+    TOKEN_TRY, TOKEN_CATCH, TOKEN_RAISE,
+    TOKEN_CLASS, TOKEN_NEW, TOKEN_METHOD, TOKEN_SELF, TOKEN_WHILE, TOKEN_FN,
+    TOKEN_BREAK, TOKEN_CONTINUE, TOKEN_MATCH, TOKEN_ASSERT,
+    TOKEN_START, TOKEN_TASK, TOKEN_WAIT, TOKEN_ASYNC, TOKEN_AWAIT,
+
+    TOKEN_PLUS, TOKEN_MINUS, TOKEN_STAR, TOKEN_SLASH,
+    TOKEN_DOT, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_COMMA,
+    TOKEN_PSS, TOKEN_LBRACKET, TOKEN_RBRACKET,
+
+    TOKEN_EOF, TOKEN_ERROR
+} TokenType;
+
+typedef struct {
+    TokenType type;
+    const char *start;
+    int length;
+    int line;
+} Token;
+
+typedef struct {
+    const char *source;
+    int start;
+    int current;
+    int line;
+} Lexer;
+
+void lexer_init(Lexer *lexer, const char *source);
+Token lexer_next_token(Lexer *lexer);
+const char *token_type_name(TokenType type);
+
+#endif

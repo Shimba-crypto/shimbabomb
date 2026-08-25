@@ -1,0 +1,47 @@
+#!/bin/bash
+# sb-build: compile and run a ShimbaBomb file or folder
+set -e
+
+SELF="$(readlink -f "$0")"
+DIR="$(cd "$(dirname "$SELF")" && pwd)"
+SRC="$DIR/src"
+BUILD="$DIR/build"
+
+mkdir -p "$BUILD"
+
+echo "Building ShimbaBomb compiler..."
+GTK_CFLAGS=$(pkg-config --cflags gtk+-3.0 2>/dev/null || echo "")
+GTK_LIBS=$(pkg-config --libs gtk+-3.0 2>/dev/null || echo "")
+WEBKIT_CFLAGS=$(pkg-config --cflags webkit2gtk-4.1 2>/dev/null || pkg-config --cflags webkit2gtk-4.0 2>/dev/null || echo "")
+WEBKIT_LIBS=$(pkg-config --libs webkit2gtk-4.1 2>/dev/null || pkg-config --libs webkit2gtk-4.0 2>/dev/null || echo "")
+CURL_CFLAGS=$(pkg-config --cflags libcurl 2>/dev/null || echo "")
+CURL_LIBS=$(pkg-config --libs libcurl 2>/dev/null || echo "-lcurl")
+READLINE_LIBS="-lreadline"
+gcc -std=c11 -Wall -Wextra $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS -DSB_STD_DIR="\"$DIR/std\"" -DSB_SRC_DIR="\"$DIR\"" -o "$BUILD/sb" \
+    "$SRC/lexer.c" \
+    "$SRC/ast.c" \
+    "$SRC/value.c" \
+    "$SRC/parser.c" \
+    "$SRC/interpreter.c" \
+    "$SRC/main.c" \
+    $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $READLINE_LIBS -lm
+
+echo "Done. Binary at $BUILD/sb"
+
+if [ -n "$1" ]; then
+    if [ -d "$1" ]; then
+        echo "--- Running all .sb files in $1 ---"
+        for f in "$1"/*.sb; do
+            echo ""
+            echo "=== $f ==="
+            SB_NO_REPL=1 "$BUILD/sb" "$f"
+        done
+    elif [ -f "$1" ]; then
+        echo ""
+        echo "=== Running $1 ==="
+        SB_NO_REPL=1 "$BUILD/sb" "$1"
+    else
+        echo "sb-build: '$1' is not a file or folder"
+        exit 1
+    fi
+fi

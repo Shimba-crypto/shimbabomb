@@ -1,0 +1,380 @@
+SB
+# ============================================================
+# svm — a stack virtual machine written in pure ShimbaBomb
+#
+#   bytecode : list of instructions [OP, arg?] e.g. ["PUSH", 5]
+#   stack    : operand stack
+#   vars     : map name -> value
+#   funcs    : map label -> code address
+#   frames   : call frames (ret ip + args)
+#   ip       : instruction pointer
+#   out      : output log
+# ============================================================
+
+# ---------- helpers ----------
+
+define push with lst and v as
+    add_to with lst and v.
+    give back lst.
+end.
+
+define pop with lst as
+    set n to length with lst.
+    if n is 0 then
+        give back list with nothing and list with.
+    end
+    set v to item with n minus 1 and lst.
+    set rest to list with.
+    count i from 0 to n minus 2 then
+        add_to with rest and item with i and lst.
+    end
+    give back list with v and rest.
+end.
+
+define peekv with lst as
+    set n to length with lst.
+    if n is 0 then
+        give back nothing.
+    end
+    give back item with n minus 1 and lst.
+end.
+
+define droplast with lst and k as
+    set n to length with lst.
+    set keep to n minus k.
+    set outl to list with.
+    count i from 0 to 99999 then
+        if i is greater than keep minus 1 then
+            break.
+        end
+        add_to with outl and item with i and lst.
+    end
+    give back outl.
+end.
+
+define binop2 with stk and opname as
+    set p1 to pop with stk.
+    set b to item with 0 and p1.
+    set stk2 to item with 1 and p1.
+    set p2 to pop with stk2.
+    set a to item with 0 and p2.
+    set rest to item with 1 and p2.
+    set r to 0.
+    match opname with "ADD" then
+        set r to a plus b.
+    with "SUB" then
+        set r to a minus b.
+    with "MUL" then
+        set r to a times b.
+    with "DIV" then
+        set r to a divided by b.
+    with "LT" then
+        if a is less than b then
+            set r to true.
+        otherwise
+            set r to false.
+        end
+    with "GT" then
+        if a is greater than b then
+            set r to true.
+        otherwise
+            set r to false.
+        end
+    with "EQ" then
+        if a is b then
+            set r to true.
+        otherwise
+            set r to false.
+        end
+    end
+    give back list with r and rest.
+end.
+
+define push2 with pair as
+    set v to item with 0 and pair.
+    set rest to item with 1 and pair.
+    give back push with rest and v.
+end.
+
+# ---------- one VM step: vm -> vm ----------
+
+define step with vm as
+    set code to vm["code"].
+    set funcs to vm["funcs"].
+    set stk to vm["stack"].
+    set vars to vm["vars"].
+    set frames to vm["frames"].
+    set pending to vm["pending"].
+    set ip to vm["ip"].
+    set out to vm["out"].
+
+    set ins to item with ip and code.
+    set op to item with 0 and ins.
+    set nip to ip plus 1.
+    set freshvars to map with.
+
+    match op with "PUSH" then
+        set v to item with 1 and ins.
+        set stk to push with stk and v.
+    with "LOAD" then
+        set nm to item with 1 and ins.
+        set v to vars[nm].
+        set stk to push with stk and v.
+    with "STORE" then
+        set nm to item with 1 and ins.
+        set p1 to pop with stk.
+        set vars[nm] to item with 0 and p1.
+        set stk to item with 1 and p1.
+    with "POP" then
+        set p1 to pop with stk.
+        set stk to item with 1 and p1.
+    with "DUP" then
+        set topd to peekv with stk.
+        set stk to push with stk and topd.
+    with "ADD" then
+        set stk to push2 with binop2 with stk and "ADD".
+    with "SUB" then
+        set stk to push2 with binop2 with stk and "SUB".
+    with "MUL" then
+        set stk to push2 with binop2 with stk and "MUL".
+    with "DIV" then
+        set stk to push2 with binop2 with stk and "DIV".
+    with "LT" then
+        set stk to push2 with binop2 with stk and "LT".
+    with "GT" then
+        set stk to push2 with binop2 with stk and "GT".
+    with "EQ" then
+        set stk to push2 with binop2 with stk and "EQ".
+    with "PRINT" then
+        set topp to peekv with stk.
+        add_to with out and topp.
+        set stk to droplast with stk and 1.
+    with "JMP" then
+        set nip to item with 1 and ins.
+    with "JZ" then
+        set tgt to item with 1 and ins.
+        set p1 to pop with stk.
+        set cond to item with 0 and p1.
+        set stk to item with 1 and p1.
+        if cond is false then
+            set nip to tgt.
+        end
+        if cond is 0 then
+            set nip to tgt.
+        end
+    with "CALL" then
+        set fname to item with 1 and ins.
+        set nargs to item with 2 and ins.
+        set args to list with.
+        count i from 0 to nargs minus 1 then
+            set idx to nargs minus 1 minus i.
+            set p1 to pop with stk.
+            add_to with args and item with 0 and p1.
+            set stk to item with 1 and p1.
+        end
+        set fr to map with "ret" and nip and "args" and args and "savedvars" and vars.
+        set frames to push with frames and fr.
+        set pending to args.
+        set vars to freshvars.
+        set nip to funcs[fname].
+    with "RET" then
+        set p1 to pop with stk.
+        set retval to item with 0 and p1.
+        set stk to item with 1 and p1.
+        set fr to peekv with frames.
+        set frames to droplast with frames and 1.
+        set pending to fr["args"].
+        set vars to fr["savedvars"].
+        set stk to push with stk and retval.
+        set nip to fr["ret"].
+    with "LOADARG" then
+        set ai to item with 1 and ins.
+        set v2 to pending[ai].
+        set stk to push with stk and v2.
+    with "HALT" then
+        set nip to length with code.
+    end
+
+    give back map with "code" and code and "funcs" and funcs and "stack" and stk and "vars" and vars and "frames" and frames and "pending" and pending and "ip" and nip and "out" and out.
+end.
+
+define run_vm with vm as
+    set v to vm.
+    set going to true.
+    set guard to 0.
+    while going then
+        set ipnow to v["ip"].
+        set codelen to length with v["code"].
+        if ipnow is greater than codelen minus 1 then
+            set going to false.
+            break.
+        end
+        if guard is greater than 200000 then
+            say "svm: instruction limit hit".
+            set going to false.
+            break.
+        end
+        set v to step with v.
+        set guard to guard plus 1.
+    end
+    set v["steps"] to guard minus 1.
+    give back v.
+end.
+
+# ---------- assembler ----------
+#   PUSH 5 / STORE n / loop: / JMP loop / CALL fib 1 / HALT
+
+define assemble with src as
+    set lines to split with src and "\n".
+    set labels to map with.
+    set addr to 0.
+    loop line through lines then
+        set t to trim with line.
+        set tl to length with t.
+        if tl is greater than 0 then
+            set lastch to t[tl minus 1].
+            if lastch is ":" then
+                set lp to split with t and ":".
+                set lname to item with 0 and lp.
+                set labels[lname] to addr.
+            otherwise
+                set addr to addr plus 1.
+            end
+        end
+    end
+    set code to list with.
+    loop line2 through lines then
+        set t2 to trim with line2.
+        set tl2 to length with t2.
+        if tl2 is greater than 0 then
+            set lastch2 to t2[tl2 minus 1].
+            set skip to false.
+            if lastch2 is ":" then
+                set skip to true.
+            end
+            if skip is false then
+                set parts to split with t2 and " ".
+                set opc to length with parts.
+                set opw to item with 0 and parts.
+                set ins to list with opw.
+                if opw is "CALL" then
+                    # keep function NAME — resolved at runtime via funcs
+                    if opc is greater than 1 then
+                        set a1 to item with 1 and parts.
+                        add_to with ins and a1.
+                    end
+                    if opc is greater than 2 then
+                        set a2 to to_number with item with 2 and parts.
+                        add_to with ins and a2.
+                    end
+                    add_to with code and ins.
+                    continue.
+                end
+                if opc is greater than 1 then
+                    set a1 to item with 1 and parts.
+                    set num to to_number with a1.
+                    set isnum to false.
+                    if num is greater than 0 then
+                        set isnum to true.
+                    end
+                    if a1 is "0" then
+                        set isnum to true.
+                    end
+                    if isnum then
+                        add_to with ins and num.
+                    otherwise
+                        set lbl to labels[a1].
+                        if lbl then
+                            add_to with ins and lbl.
+                        otherwise
+                            add_to with ins and a1.
+                        end
+                    end
+                end
+                if opc is greater than 2 then
+                    set a2 to to_number with item with 2 and parts.
+                    add_to with ins and a2.
+                end
+                add_to with code and ins.
+            end
+        end
+    end
+    give back list with code and labels.
+end.
+
+define boot with asm_src as
+    set cl to assemble with asm_src.
+    set code to item with 0 and cl.
+    set funcs to item with 1 and cl.
+    set emptystack to list with.
+    set emptyvars to map with.
+    set emptyout to list with.
+    give back map with "code" and code and "funcs" and funcs and "stack" and emptystack and "vars" and emptyvars and "frames" and emptystack and "pending" and emptystack and "ip" and 0 and "out" and emptyout.
+end.
+
+# ============================================================
+# demos
+# ============================================================
+
+define prog_countdown as
+    give back "PUSH 3
+STORE n
+loop:
+LOAD n
+PRINT
+LOAD n
+PUSH 1
+SUB
+DUP
+STORE n
+JZ done
+JMP loop
+done:
+HALT".
+end.
+
+define prog_fib as
+    give back "PUSH 10
+CALL fib 1
+PRINT
+HALT
+fib:
+LOADARG 0
+STORE n
+LOAD n
+PUSH 2
+LT
+JZ rec
+LOAD n
+RET
+rec:
+LOAD n
+PUSH 1
+SUB
+CALL fib 1
+LOAD n
+PUSH 2
+SUB
+CALL fib 1
+ADD
+RET".
+end.
+
+say "== svm: countdown ==".
+set src1 to prog_countdown with.
+set vm1 to boot with src1.
+set r1 to run_vm with vm1.
+loop oline through r1["out"] then
+    say oline.
+end
+
+say "".
+say "== svm: recursive fib(10) ==".
+set src2 to prog_fib with.
+set vm2 to boot with src2.
+set r2 to run_vm with vm2.
+loop oline2 through r2["out"] then
+    say oline2.
+end
+set steps to r2["steps"].
+say steps plus " instructions executed.".

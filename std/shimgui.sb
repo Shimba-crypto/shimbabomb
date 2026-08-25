@@ -1,0 +1,257 @@
+SB
+# ============================================================
+# shimgui.sb — ShimGUI toolkit for ShimbaBomb
+#
+#   SB's own Tk. Not a wrapper — a first-class toolkit.
+#   Glass-liquid design, English-like API, event loop built-in.
+#
+#   Quick start:
+#     pls bring shimgui.
+#     set app to shimgui_app with "Demo" and 8080.
+#     define render as
+#       set body to shimgui_label with "Hello ShimGUI".
+#       set body to body plus shimgui_button with "Click me" and "click".
+#       give back shimgui_page with "Demo" and body.
+#     end
+#     define on_event with action as
+#       if action is "click" then
+#         say "clicked".
+#       end
+#     end
+#     shimgui_run with app and render and on_event.
+#
+#   Based on ui/uiapp but with Shim-native naming and glass theme.
+# ============================================================
+
+pls bring ui.
+
+# ---------- theme ----------
+
+define shimgui_css as
+    give back "<style>
+:root{--bg:#12081f;--surface:rgba(255,255,255,0.10);--surface-strong:rgba(255,255,255,0.16);--border:rgba(255,255,255,0.22);--border-strong:rgba(255,255,255,0.32);--text:#f4f0ff;--muted:rgba(244,240,255,0.6);--accent:#a78bfa;--accent-strong:#7c5ce0;--accent2:#e879f9;--success:#4ade80;--warning:#fbbf24;--danger:#f87171}
+*{box-sizing:border-box;margin:0}
+body{background:linear-gradient(135deg,#12081f 0%,#241043 50%,#3b1d63 100%);color:var(--text);font:16px/1.5 -apple-system,'Segoe UI',Roboto,Ubuntu,sans-serif;min-height:100vh;padding:24px;max-width:1100px;margin-inline:auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--accent-strong)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.glass{background:rgba(255,255,255,0.10);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 24px rgba(167,139,250,0.35)}
+h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:20px;font-weight:600}
+.mono{font-family:ui-monospace,'JetBrains Mono',Consolas,monospace}
+.muted{color:var(--muted)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.logo{width:34px;height:34px;border-radius:50%;background:rgba(167,139,250,0.14);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--accent);box-shadow:0 4px 14px rgba(167,139,250,0.4)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.card{background:rgba(255,255,255,0.10);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid var(--border);border-radius:24px;padding:16px;box-shadow:0 8px 24px rgba(167,139,250,0.35);position:relative;overflow:hidden}
+.card::after{content:'';position:absolute;top:3px;left:3px;right:3px;bottom:3px;border:1px solid rgba(255,255,255,0.15);border-radius:21px;pointer-events:none}
+.card h3{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.stat-v{font-size:36px;font-weight:700;line-height:1.1}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 22px;border-radius:999px;background:rgba(255,255,255,0.16);border:1px solid var(--border);color:var(--text);font-weight:600;cursor:pointer;transition:all .12s ease-out;box-shadow:0 6px 18px rgba(232,121,249,0.4);text-decoration:none}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px);border-color:var(--border-strong)}
+.btn:active{transform:translateY(0px)}
+.btn.primary{background:rgba(167,139,250,0.30);border-color:rgba(167,139,250,0.6)}
+.btn.ghost{background:transparent;box-shadow:none}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);backdrop-filter:blur(12px)}
+.b-ok{color:var(--success);border-color:var(--success)}
+.b-warn{color:var(--warning);border-color:var(--warning)}
+.b-err{color:var(--danger);border-color:var(--danger)}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 8px;border-bottom:1px solid rgba(255,255,255,0.12);min-height:44px}
+.row:last-child{border-bottom:none}
+.bar{height:10px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px}
+.kv dt{color:var(--muted)}
+.input{background:rgba(255,255,255,0.10);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);min-height:44px;flex:1}
+.input::placeholder{color:var(--muted)}
+footer{margin-top:32px;color:var(--muted);font-size:14px;display:flex;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>".
+end.
+
+define shimgui_logo_svg as
+    give back "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' aria-hidden='true'><path d='M13 2 4 14h6l-1 8 9-12h-6l1-8z' fill='currentColor'/></svg>".
+end.
+
+# ---------- app shell ----------
+
+define shimgui_app with title and port as
+    give back map with "title" and title and "port" and port.
+end.
+
+define shimgui_page with title and body_html as
+    set css to shimgui_css with.
+    set logo to shimgui_logo_svg with.
+    set head to "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>".
+    set head to head plus "<meta name='viewport' content='width=device-width,initial-scale=1'>".
+    set head to head plus "<title>" plus title plus "</title>".
+    set head to head plus css.
+    set open_body to "</head><body><header class='topbar'><div class='brand'><span class='logo'>".
+    set brand_close to "</span>" plus title plus "</div></header>".
+    set foot to "<footer><span>Built with ShimGUI</span><span>shimgui v1</span></footer></body></html>".
+    give back head plus open_body plus logo plus brand_close plus body_html plus foot.
+end.
+
+# ---------- layout ----------
+
+define shimgui_grid_open as
+    give back "<div class='grid'>".
+end.
+
+define shimgui_grid_close as
+    give back "</div>".
+end.
+
+define shimgui_rows_open as
+    give back "<div class='rows card'>".
+end.
+
+define shimgui_rows_close as
+    give back "</div>".
+end.
+
+define shimgui_frame with body_html as
+    give back "<div class='card'>" plus body_html plus "</div>".
+end.
+
+define shimgui_spacer with h as
+    give back "<div style='height:" plus h plus "px'></div>".
+end.
+
+# ---------- widgets ----------
+
+define shimgui_label with text as
+    give back "<p>" plus text plus "</p>".
+end.
+
+define shimgui_heading with text as
+    give back "<h1>" plus text plus "</h1>".
+end.
+
+define shimgui_subheading with text as
+    give back "<h2>" plus text plus "</h2>".
+end.
+
+define shimgui_card with title and content_html as
+    give back "<section class='card'><h3>" plus title plus "</h3>" plus content_html plus "</section>".
+end.
+
+define shimgui_stat with label and value and trend_text and trend_up as
+    set cls to "muted".
+    if trend_up then
+        set cls to "b-ok".
+    end
+    give back "<section class='card'><h3>" plus label plus "</h3><div class='stat-v mono'>" plus value plus "</div><span class='" plus cls plus "'>" plus trend_text plus "</span></section>".
+end.
+
+define shimgui_badge with text and tone as
+    set cls to "b-ok".
+    if tone is "warn" then
+        set cls to "b-warn".
+    end
+    if tone is "err" then
+        set cls to "b-err".
+    end
+    give back "<span class='badge " plus cls plus "'>" plus text plus "</span>".
+end.
+
+define shimgui_button with label and action as
+    give back "<a class='btn primary' href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define shimgui_button_ghost with label and action as
+    give back "<a class='btn ghost' href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define shimgui_link with label and action as
+    give back "<a href='/?action=" plus action plus "'>" plus label plus "</a>".
+end.
+
+define shimgui_input with label and action and field_name as
+    set f to "<form action='/' method='get' style='display:flex;gap:8px'>".
+    set f to f plus "<input type='hidden' name='action' value='" plus action plus "'>".
+    set f to f plus "<input class='input' type='text' name='" plus field_name plus "' placeholder='" plus label plus "'>".
+    set f to f plus "<button class='btn primary' type='submit'>" plus label plus "</button></form>".
+    give back f.
+end.
+
+define shimgui_bar with percent as
+    give back "<div class='bar'><i style='width:" plus percent plus "%'></i></div>".
+end.
+
+define shimgui_meter with label and percent and right_text as
+    set bar to shimgui_bar with percent.
+    give back "<div><div class='row' style='padding:0;margin-bottom:4px'><span>" plus label plus "</span><span class='mono'>" plus right_text plus "</span></div>" plus bar plus "</div>".
+end.
+
+define shimgui_kv_open as
+    give back "<dl class='kv card'>".
+end.
+
+define shimgui_kv_pair with key and value as
+    give back "<dt>" plus key plus "</dt><dd class='mono'>" plus value plus "</dd>".
+end.
+
+define shimgui_kv_close as
+    give back "</dl>".
+end.
+
+# ---------- glass orb icon ----------
+
+define shimgui_icon with glyph and color as
+    set bg to "rgba(167,139,250,0.14)".
+    if color is "pink" then
+        set bg to "rgba(232,121,249,0.14)".
+    end
+    if color is "blue" then
+        set bg to "rgba(96,165,250,0.14)".
+    end
+    give back "<span style='width:34px;height:34px;border-radius:50%;background:" plus bg plus ";border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(167,139,250,0.4);font-weight:900'>" plus glyph plus "</span>".
+end.
+
+# ---------- runtime (like uiapp but ShimGUI branded) ----------
+
+define shimgui_query with path and key as
+    set parts to split with path and "?".
+    set qlen to length with parts.
+    if qlen is less than 2 then
+        give back "".
+    end
+    set query to item with 1 and parts.
+    set pairs to split with query and "&".
+    loop pair through pairs then
+        set kv to split with pair and "=".
+        set klen to length with kv.
+        if klen is greater than 1 then
+            set k to item with 0 and kv.
+            if k is key then
+                set v to item with 1 and kv.
+                set v to replace with v and "+" and " ".
+                set v to replace with v and "%20" and " ".
+                give back v.
+            end
+        end
+    end
+    give back "".
+end.
+
+define shimgui_action_of with path as
+    give back shimgui_query with path and "action".
+end.
+
+define shimgui_run with title and port and render_fn and event_fn as
+    define inner with req as
+        set path to req's path.
+        set action to shimgui_action_of with path.
+        if action then
+            event_fn with action.
+        end
+        give back render_fn with.
+    end
+    set url to "http://localhost:" plus port.
+    run with "xdg-open " plus url plus " >/dev/null 2>&1 &".
+    say "shimgui: " plus title plus " at " plus url.
+    serve with port and inner.
+end.

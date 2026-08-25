@@ -1,0 +1,17 @@
+SB
+pls bring fp.
+set nums to list with 1 and 2 and 3 and 4.
+set doubled to map_with with nums and fn with x as
+    give back x times 2.
+end
+assert doubled is list with 2 and 4 and 6 and 8.
+set total to reduce_with with nums and fn with acc and it as
+    give back acc plus it.
+end and 0.
+assert total is 10.
+set evens to filter_with with nums and fn with x as
+    set h to x divided by 2.
+    set hi to to_number with trim with run with "echo " plus h plus " | cut -d. -f1".
+    give back hi times 2 is x.
+end
+assert evens is list with 2 and 4.

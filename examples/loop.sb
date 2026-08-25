@@ -1,0 +1,10 @@
+SB
+
+count i from 1 to 5 then
+    say "count: " plus i.
+end
+set total to 0.
+count i from 1 to 10 then
+    set total to total plus i.
+end
+say "total 1 to 10 is " plus total.

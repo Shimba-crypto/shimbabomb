@@ -1,0 +1,36 @@
+SB
+# fs_extra — extra file helpers built on core natives
+
+define list_dir with path as
+    set raw to run with "ls -1 '" plus path plus "' 2>/dev/null".
+    give back split with raw and "\n".
+end
+
+define dir_exists with path as
+    give back file_exists with path.
+end
+
+define delete_file with path as
+    run with "rm -f '" plus path plus "'".
+    give back nothing.
+end
+
+define copy_file with src and dst as
+    run with "cp '" plus src plus "' '" plus dst plus "'".
+    give back nothing.
+end
+
+define move_file with src and dst as
+    run with "mv '" plus src plus "' '" plus dst plus "'".
+    give back nothing.
+end
+
+define make_dir with path as
+    run with "mkdir -p '" plus path plus "'".
+    give back nothing.
+end
+
+define file_size with path as
+    set out to trim with run with "stat -c%s '" plus path plus "' 2>/dev/null || echo 0".
+    give back to_number with out.
+end

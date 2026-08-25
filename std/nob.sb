@@ -1,0 +1,254 @@
+SB
+# ============================================================
+# NumOneBomineter (NOB) — numpy-like arrays in pure SB
+#   tensor = map with "shape" and [rows, cols] and "data" and [flat...]
+#   row-major storage. All ops are functional (return new tensors).
+# ============================================================
+
+define nob_new with rows and cols and fill as
+    set data to list with.
+    set total to rows times cols.
+    count i from 1 to total then
+        add_to with data and fill.
+    end
+    set shp to list with rows and cols.
+    give back map with "shape" and shp and "data" and data.
+end.
+
+define nob_zeros with rows and cols as
+    give back nob_new with rows and cols and 0.
+end.
+
+define nob_ones with rows and cols as
+    give back nob_new with rows and cols and 1.
+end.
+
+define nob_full with rows and cols and fill as
+    give back nob_new with rows and cols and fill.
+end.
+
+define nob_from_rows with rows_list as
+    # rows_list = list of lists, all same length
+    set nrows to length with rows_list.
+    set ncols to length with item with 0 and rows_list.
+    set data to list with.
+    loop row through rows_list then
+        loop v through row then
+            add_to with data and v.
+        end
+    end
+    set shp to list with nrows and ncols.
+    give back map with "shape" and shp and "data" and data.
+end.
+
+define nob_get with t and r and c as
+    set cols to item with 1 and t["shape"].
+    set idx to r times cols plus c.
+    give back item with idx and t["data"].
+end.
+
+# functional set: returns NEW tensor with [r,c] = v
+define nob_set with t and r and c and v as
+    set cols to item with 1 and t["shape"].
+    set idx to r times cols plus c.
+    set newdata to list with.
+    set n to length with t["data"].
+    count i from 0 to n minus 1 then
+        if i is idx then
+            add_to with newdata and v.
+        otherwise
+            add_to with newdata and item with i and t["data"].
+        end
+    end
+    give back map with "shape" and t["shape"] and "data" and newdata.
+end.
+
+define nob_transpose with t as
+    set rows to item with 0 and t["shape"].
+    set cols to item with 1 and t["shape"].
+    set data to list with.
+    count c from 0 to cols minus 1 then
+        count r from 0 to rows minus 1 then
+            add_to with data and nob_get with t and r and c.
+        end
+    end
+    set shp to list with cols and rows.
+    give back map with "shape" and shp and "data" and data.
+end.
+
+# elementwise binary op helper (length-1 side broadcasts)
+define nob_zipwith with a and b and opname as
+    set da to a["data"].
+    set db to b["data"].
+    set na to length with da.
+    set nb to length with db.
+    set shp to a["shape"].
+    if na is nb then
+        set shp to a["shape"].
+    otherwise
+        if na is 1 then
+            set v to item with 0 and da.
+            set da to list with.
+            count i from 1 to nb then
+                add_to with da and v.
+            end
+            set shp to b["shape"].
+        otherwise
+            if nb is 1 then
+                set v to item with 0 and db.
+                set db to list with.
+                count i from 1 to na then
+                    add_to with db and v.
+                end
+                set shp to a["shape"].
+            otherwise
+                set sa_txt to join with a["shape"] and ", ".
+                set sb_txt to join with b["shape"] and ", ".
+                raise "shape mismatch in elementwise op: [" plus sa_txt plus "] vs [" plus sb_txt plus "]".
+            end
+        end
+    end
+    set n to length with da.
+    set outd to list with.
+    count i from 0 to n minus 1 then
+        set x to item with i and da.
+        set y to item with i and db.
+        set r to 0.
+        match opname with "ADD" then
+            set r to x plus y.
+        with "SUB" then
+            set r to x minus y.
+        with "MUL" then
+            set r to x times y.
+        with "DIV" then
+            if y is 0 then
+                set r to 0.
+            otherwise
+                set r to x divided by y.
+            end
+        end
+        add_to with outd and r.
+    end
+    give back map with "shape" and shp and "data" and outd.
+end.
+
+define nob_add with a and b as
+    give back nob_zipwith with a and b and "ADD".
+end.
+
+define nob_sub with a and b as
+    give back nob_zipwith with a and b and "SUB".
+end.
+
+define nob_mul with a and b as
+    give back nob_zipwith with a and b and "MUL".
+end.
+
+# scale every element by scalar
+define nob_scale with t and s as
+    set n to length with t["data"].
+    set outd to list with.
+    loop v through t["data"] then
+        add_to with outd and v times s.
+    end
+    give back map with "shape" and t["shape"] and "data" and outd.
+end.
+
+# matrix multiply (a: m×k, b: k×n) → m×n
+define nob_matmul with a and b as
+    set m to item with 0 and a["shape"].
+    set k to item with 1 and a["shape"].
+    set n to item with 1 and b["shape"].
+    set bk to item with 0 and b["shape"].
+    if bk is k then
+        set bt to nob_transpose with b.
+    otherwise
+        set sa_txt to join with a["shape"] and ", ".
+        set sb_txt to join with b["shape"] and ", ".
+        raise "shape mismatch in matmul: [" plus sa_txt plus "] vs [" plus sb_txt plus "]".
+    end
+    set outd to list with.
+    count i from 0 to m minus 1 then
+        count j from 0 to n minus 1 then
+            set acc to 0.
+            count kk from 0 to k minus 1 then
+                set av to nob_get with a and i and kk.
+                set bv to nob_get with bt and j and kk.
+                set acc to acc plus av times bv.
+            end
+            add_to with outd and acc.
+        end
+    end
+    set shp to list with m and n.
+    give back map with "shape" and shp and "data" and outd.
+end.
+
+define nob_sum with t as
+    set s to 0.
+    loop v through t["data"] then
+        set s to s plus v.
+    end
+    give back s.
+end.
+
+define nob_mean with t as
+    set total to nob_sum with t.
+    set n to length with t["data"].
+    give back total divided by n.
+end.
+
+define nob_max with t as
+    set best to item with 0 and t["data"].
+    loop v through t["data"] then
+        if v is greater than best then
+            set best to v.
+        end
+    end
+    give back best.
+end.
+
+define nob_min with t as
+    set best to item with 0 and t["data"].
+    loop v through t["data"] then
+        if v is less than best then
+            set best to v.
+        end
+    end
+    give back best.
+end.
+
+# uniform randoms in [-0.5, 0.5), deterministic per seed (libc srand)
+define nob_rand with rows and cols and seed as
+    set total to rows times cols.
+    set raw to run with "awk -v n=" plus total plus " -v s=" plus seed plus " 'BEGIN{srand(s); for(i=0;i<n;i++) printf \"%.6f\\n\", rand()-0.5}'".
+    set data to list with.
+    set lines to split with raw and "\n".
+    loop ln through lines then
+        set ll to length with ln.
+        if ll is greater than 0 then
+            add_to with data and to_number with ln.
+        end
+    end
+    set shp to list with rows and cols.
+    give back map with "shape" and shp and "data" and data.
+end.
+
+# pretty print
+define nob_show with t as
+    set rows to item with 0 and t["shape"].
+    set cols to item with 1 and t["shape"].
+    say "[" plus rows plus "x" plus cols plus "]".
+    set line to "".
+    count r from 0 to rows minus 1 then
+        set line to "".
+        count c from 0 to cols minus 1 then
+            set cell to nob_get with t and r and c.
+            if c is 0 then
+                set line to "  " plus cell.
+            otherwise
+                set line to line plus "  " plus cell.
+            end
+        end
+        say line.
+    end
+end.

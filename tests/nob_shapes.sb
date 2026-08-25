@@ -1,0 +1,21 @@
+SB
+# regression: elementwise ops on mismatched shapes must raise, not return nothings
+pls bring nob.
+
+set r1 to list with 1 and 2.
+set r2 to list with 3 and 4.
+set A to nob_from_rows with list with r1 and r2.
+set c1 to list with 5.
+set c2 to list with 6.
+set B to nob_from_rows with list with c1 and c2.
+
+set caught to "".
+try
+    set junk to nob_add with A and B.
+catch err
+    set caught to err.
+end
+
+say "caught:".
+say caught.
+assert caught is "shape mismatch in elementwise op: [2, 2] vs [2, 1]".

@@ -1,0 +1,327 @@
+SB
+# ============================================================
+# NoTwoBomineter (N2B) — the "anything you like" stdlib
+#   stats · strings · math · misc utilities, all pure SB
+# ============================================================
+
+# ---------- numeric helpers ----------
+
+# truncate a number to integer part (via shell cut; SB has no floor)
+define n2b_int with x as
+    give back to_number with trim with run with "echo " plus x plus " | cut -d. -f1".
+end.
+
+# ---------- stats ----------
+
+define n2b_median with nums as
+    set sorted to sort with nums.
+    set n to length with sorted.
+    set half to n divided by 2.
+    set mid to n2b_int with half.
+    set oddcheck to mid times 2.
+    if oddcheck is n then
+        set a to item with mid minus 1 and sorted.
+        set b2 to item with mid and sorted.
+        give back a plus b2 divided by 2.
+    end
+    set idx to mid minus 1.
+    give back item with idx and sorted.
+end.
+
+define n2b_variance with nums as
+    set n to length with nums.
+    set total to 0.
+    loop v through nums then
+        set total to total plus v.
+    end
+    set mu to total divided by n.
+    set acc to 0.
+    loop v through nums then
+        set d to v minus mu.
+        set acc to acc plus d times d.
+    end
+    give back acc divided by n.
+end.
+
+define n2b_stddev with nums as
+    set var to n2b_variance with nums.
+    give back to_number with run with "awk 'BEGIN{printf \"%.6f\", sqrt(" plus var plus ")}'".
+end.
+
+define n2b_normalize with nums as
+    set lo to item with 0 and nums.
+    set hi to lo.
+    loop v through nums then
+        if v is less than lo then
+            set lo to v.
+        end
+        if v is greater than hi then
+            set hi to v.
+        end
+    end
+    set range to hi minus lo.
+    set outl to list with.
+    if range is 0 then
+        loop v through nums then
+            add_to with outl and 0.
+        end
+        give back outl.
+    end
+    loop v through nums then
+        set shifted to v minus lo.
+        add_to with outl and shifted divided by range.
+    end
+    give back outl.
+end.
+
+# ---------- strings ----------
+
+define n2b_word_count with text as
+    set parts to split with text and " ".
+    set real to 0.
+    loop p through parts then
+        if p then
+            set real to real plus 1.
+        end
+    end
+    give back real.
+end.
+
+define n2b_title_case with text as
+    set words to split with text and " ".
+    set outw to list with.
+    loop w through words then
+        set wl to length with w.
+        if wl is greater than 0 then
+            set firstch to w[0].
+            set rest to "".
+            count i from 1 to wl minus 1 then
+                set rest to rest plus w[i].
+            end
+            set cap to upper with firstch.
+            set low to lower with rest.
+            set fixed to cap plus low.
+            add_to with outw and fixed.
+        end
+    end
+    give back join with outw and " ".
+end.
+
+define n2b_snake_case with text as
+    give back lower with trim with replace with text and " " and "_".
+end.
+
+define n2b_repeat_str with text and amount as
+    set outv to "".
+    count i from 1 to amount then
+        set outv to outv plus text.
+    end
+    give back outv.
+end.
+
+define n2b_pad_left with text and width as
+    set len to length with text.
+    set padn to width minus len.
+    if padn is greater than 0 then
+        set padding to n2b_repeat_str with " " and padn.
+        give back padding plus text.
+    end
+    give back text.
+end.
+
+define n2b_starts_with with text and prefix as
+    set plen to length with prefix.
+    if plen is greater than length with text then
+        give back false.
+    end
+    set head to "".
+    count i from 0 to plen minus 1 then
+        set head to head plus text[i].
+    end
+    give back head is prefix.
+end.
+
+define n2b_leet with text as
+    set t to replace with text and "e" and "3".
+    set t to replace with t and "o" and "0".
+    set t to replace with t and "i" and "1".
+    set t to replace with t and "a" and "4".
+    set t to replace with t and "s" and "5".
+    give back t.
+end.
+
+define n2b_caesar with text and shift as
+    set lower_alpha to "abcdefghijklmnopqrstuvwxyz".
+    set upper_alpha to "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
+    set outv to "".
+    set n to length with text.
+    count i from 0 to n minus 1 then
+        set ch to text[i].
+        set pos to find with lower_alpha and ch.
+        if pos is -1 then
+            set pos to find with upper_alpha and ch.
+        end
+        if pos is -1 then
+            set outv to outv plus ch.
+        otherwise
+            set newpos to pos plus shift.
+            if newpos is greater than 25 then
+                set newpos to newpos minus 26.
+            end
+            if newpos is less than 0 then
+                set newpos to newpos plus 26.
+            end
+            set shifted to lower_alpha[newpos].
+            set wasupper to find with upper_alpha and ch.
+            if wasupper is -1 then
+                set outv to outv plus shifted.
+            otherwise
+                set outv to outv plus upper with shifted.
+            end
+        end
+    end
+    give back outv.
+end.
+
+# ---------- math ----------
+
+define n2b_clamp with v and lo and hi as
+    if v is less than lo then
+        give back lo.
+    end
+    if v is greater than hi then
+        give back hi.
+    end
+    give back v.
+end.
+
+define n2b_lerp with a and b and t as
+    set range to b minus a.
+    give back a plus range times t.
+end.
+
+define n2b_factorial with n as
+    set acc to 1.
+    count i from 2 to n then
+        set acc to acc times i.
+    end
+    give back acc.
+end.
+
+define n2b_mod with a and m as
+    set q to a divided by m.
+    set qi to n2b_int with q.
+    give back a minus qi times m.
+end.
+
+define n2b_gcd with a and b as
+    set going to true.
+    while going then
+        if b is 0 then
+            set going to false.
+        otherwise
+            set r to n2b_mod with a and b.
+            set a to b.
+            set b to r.
+        end
+    end
+    give back a.
+end.
+
+define n2b_is_prime with n as
+    if n is less than 2 then
+        give back false.
+    end
+    set i to 2.
+    set going to true.
+    while going then
+        if i times i is greater than n then
+            set going to false.
+        otherwise
+            set r to n2b_mod with n and i.
+            if r is 0 then
+                give back false.
+            end
+            set i to i plus 1.
+        end
+    end
+    give back true.
+end.
+
+define n2b_primes_up_to with n as
+    set outl to list with.
+    count i from 2 to n then
+        if n2b_is_prime with i then
+            add_to with outl and i.
+        end
+    end
+    give back outl.
+end.
+
+define n2b_fizzbuzz with n as
+    set outl to list with.
+    count i from 1 to n then
+        set m3 to n2b_mod with i and 3.
+        set m5 to n2b_mod with i and 5.
+        if m3 is 0 then
+            if m5 is 0 then
+                add_to with outl and "FizzBuzz".
+            otherwise
+                add_to with outl and "Fizz".
+            end
+        otherwise
+            if m5 is 0 then
+                add_to with outl and "Buzz".
+            otherwise
+                add_to with outl and i.
+            end
+        end
+    end
+    give back outl.
+end.
+
+# ---------- misc ----------
+
+define n2b_uniq with items as
+    set outl to list with.
+    loop it through items then
+        set seen to false.
+        loop o through outl then
+            if o is it then
+                set seen to true.
+            end
+        end
+        if seen is false then
+            add_to with outl and it.
+        end
+    end
+    give back outl.
+end.
+
+define n2b_reverse_list with items as
+    set outl to list with.
+    set n to length with items.
+    count i from 0 to n minus 1 then
+        set idx to n minus 1 minus i.
+        add_to with outl and item with idx and items.
+    end
+    give back outl.
+end.
+
+define n2b_chunk with items and size as
+    set chunks to list with.
+    set cur to list with.
+    loop it through items then
+        add_to with cur and it.
+        set cl to length with cur.
+        if cl is size then
+            add_to with chunks and cur.
+            set cur to list with.
+        end
+    end
+    set cl to length with cur.
+    if cl is greater than 0 then
+        add_to with chunks and cur.
+    end
+    give back chunks.
+end.

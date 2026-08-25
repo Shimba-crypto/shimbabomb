@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ShimbaBomb",
+  "scopeName": "source.shimbabomb",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#keywords" },
+    { "include": "#functions" },
+    { "include": "#operators" },
+    { "include": "#identifier" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.shimbabomb"
+    },
+    "string": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.shimbabomb",
+      "patterns": [
+        { "match": "\\\\[ntr\"\\\\\\\\]", "name": "constant.character.escape.shimbabomb" },
+        { "match": "\\$\\{[^}]*\\}", "name": "variable.interpolation.shimbabomb" }
+      ]
+    },
+    "number": {
+      "match": "\\b\\d+(\\.\\d+)?\\b",
+      "name": "constant.numeric.shimbabomb"
+    },
+    "keywords": {
+      "match": "\\b(set|to|say|define|with|as|end|if|then|otherwise|count|from|loop|through|while|break|continue|match|try|catch|raise|class|new|method|self|give back|pls bring|start|task|wait|async|await|assert|fn|and|or|not|mod|is|is not|true|false)\\b",
+      "name": "keyword.control.shimbabomb"
+    },
+    "functions": {
+      "match": "\\b(list|length|item|add_to|remove_from|upper|lower|trim|split|join|contains|replace|find|reverse|sort|has|read_file|write_file|append_file|file_exists|run|type_of|to_number|to_string|input|fetch|window|serve|play|parse_json|to_json|read_csv|map|keys|has_key|remove_key|map_with|filter_with|reduce_with|each_with|take_with|drop_with|rev)\\b",
+      "name": "support.function.shimbabomb"
+    },
+    "operators": {
+      "match": "(plus|minus|times|divided by|divided evenly by|\\+|-|\\*|/|is less than|is greater than|is equal to)",
+      "name": "keyword.operator.shimbabomb"
+    },
+    "identifier": {
+      "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+      "name": "variable.other.shimbabomb"
+    }
+  }
+}

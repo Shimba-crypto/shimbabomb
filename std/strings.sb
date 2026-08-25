@@ -1,0 +1,20 @@
+SB
+
+# std/strings — helpers for text
+
+define capitalize with s as
+    if length with s is equal to 0 then
+        give back s.
+    end
+    set first to upper with s[0].
+    set rest to "".
+    count i from 1 to length with s minus 1 then
+        set rest to rest plus s[i].
+    end
+    give back first plus lower with rest.
+end
+
+define count_words with s as
+    set parts to split with s and " ".
+    give back length with parts.
+end

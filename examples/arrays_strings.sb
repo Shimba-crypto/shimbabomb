@@ -1,0 +1,18 @@
+SB
+
+set nums to list with 1 and 5 and 3 and 2.
+say "list: " plus nums.
+say "length: " plus length with nums.
+say "sorted: " plus sort with nums.
+say "item 1: " plus item with 1 and nums.
+say "has 3: " plus has with nums and 3.
+set words to split with "hello world test" and " ".
+say "split: " plus words.
+say "joined: " plus join with words and ", ".
+say "upper: " plus upper with "hello".
+say "lower: " plus lower with "HELLO".
+say "trimmed: " plus trim with "  hi  ".
+loop word through words then
+    say "word: " plus word.
+end
+say nums[0] plus " first".

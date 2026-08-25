@@ -1,0 +1,26 @@
+SB
+
+define square with n as
+    give back n times n.
+end
+define cube with n as
+    give back n times n times n.
+end
+define absolute with n as
+    if n is less than 0 then
+        give back 0 minus n.
+    end
+    give back n.
+end
+define bigger with a and b as
+    if a is greater than b then
+        give back a.
+    end
+    give back b.
+end
+define smaller with a and b as
+    if a is less than b then
+        give back a.
+    end
+    give back b.
+end

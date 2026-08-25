@@ -1,0 +1,11 @@
+SB
+
+define fibonacci with n as
+    if n is less than 2 then
+        give back n.
+    end
+    give back fibonacci with n minus 1 plus fibonacci with n minus 2.
+end
+count i from 0 to 15 then
+    say "fib(" plus i plus ") = " plus fibonacci with i.
+end

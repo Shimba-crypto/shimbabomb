@@ -1,0 +1,8 @@
+SB
+
+try
+    raise "oops happened".
+catch err
+    say "caught: " plus err.
+end
+say "after try".

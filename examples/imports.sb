@@ -1,0 +1,12 @@
+SB
+
+pls bring maths.
+say "square of 6 is " plus square with 6.
+say "cube of 3 is " plus cube with 3.
+set cold to -7.
+say "absolute of -7 is " plus absolute with cold.
+set big to bigger with 10 and 4.
+set small to smaller with 10 and 4.
+say "bigger is " plus big plus ", smaller is " plus small.
+pls bring maths.
+say "imported twice on purpose, still fine".

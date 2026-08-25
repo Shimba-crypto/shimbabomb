@@ -1,0 +1,121 @@
+SB
+# ============================================================
+# ShimbaBomb scientific stack showcase
+#   NOB (NumOneBomineter)  — numpy-like arrays
+#   ShimTorch              — autograd + neural nets on NOB
+#   N2B (NoTwoBomineter)   — utility belt
+# ============================================================
+
+pls bring nob.
+pls bring notwo.
+pls bring shimtorch.
+
+say "========================================".
+say " part 1: NOB — linear algebra".
+say "========================================".
+
+set r1 to list with 1 and 2.
+set r2 to list with 3 and 4.
+set A to nob_from_rows with list with r1 and r2.
+say "A =".
+nob_show with A.
+
+set c1 to list with 5 and 6.
+set c2 to list with 7 and 8.
+set B to nob_from_rows with list with c1 and c2.
+say "B =".
+nob_show with B.
+say "A+B =".
+nob_show with nob_add with A and B.
+
+say "A·B =".
+nob_show with nob_matmul with A and B.
+
+set wr1 to list with 0.3.
+set wr2 to list with -0.2.
+set R to nob_rand with 3 and 3 and 123.
+say "rand(3x3, seed 123):".
+nob_show with R.
+
+say "".
+say "========================================".
+say " part 2: N2B — utilities".
+say "========================================".
+
+set data to list with 4 and 8 and 15 and 16 and 23 and 42.
+say "median of [4 8 15 16 23 42]: ".
+say n2b_median with data.
+say "stddev: ".
+say n2b_stddev with data.
+say "primes < 50: ".
+say n2b_primes_up_to with 50.
+say "title_case: ".
+say n2b_title_case with "shimbomb makes science easy".
+say "caesar('attack at dawn', 5): ".
+say n2b_caesar with "attack at dawn" and 5.
+say "caesar back (-5): ".
+say n2b_caesar with "fyyfhp fy ifbs" and -5.
+
+say "".
+say "========================================".
+say " part 3: ShimTorch — gradient descent".
+say "========================================".
+
+# learn y = x·W + b from 2 samples
+set x1 to list with 1 and 2.
+set x2 to list with 2 and 3.
+set X to nob_from_rows with list with x1 and x2.
+set y1 to list with 3.
+set y2 to list with 5.
+set Y to nob_from_rows with list with y1 and y2.
+
+set W to nob_rand with 2 and 1 and 7.
+set brow1 to list with 0.
+set brow2 to list with 0.
+set brows to list with brow1 and brow2.
+set b to nob_from_rows with brows.
+
+set lr to 0.05.
+set epochs to 60.
+set e to 0.
+while e is less than epochs then
+    set tape to st_new_tape with.
+    set r1 to st_matmul with "X" and X and "W" and W and "lin".
+    set lind to r1["data"].
+    loop t through r1["entries"] then
+        add_to with tape and t.
+    end
+    set r2 to st_add with "lin" and lind and "b" and b and "pred".
+    set pd to r2["data"].
+    loop t through r2["entries"] then
+        add_to with tape and t.
+    end
+    set res to st_mse with "pred" and pd and "Y" and Y.
+    loop t through res["entries"] then
+        add_to with tape and t.
+    end
+
+    set lookup to map with "X" and X and "W" and W and "b" and b and "pred" and pd and "lin" and lind and "Y" and Y.
+    set exk to keys with res["extra"].
+    loop k through exk then
+        set lookup[k] to res["extra"][k].
+    end
+    set grads to st_backward with tape and res["topid"] and lookup.
+
+    set neglr to 0 minus lr.
+    set gW to nob_scale with grads["W"] and neglr.
+    set gb to nob_scale with grads["b"] and neglr.
+    set W to nob_add with W and gW.
+    set b to nob_add with b and gb.
+    set e to e plus 1.
+end
+
+say "final loss after 60 epochs:".
+say res["loss"].
+say "predictions:".
+nob_show with pd.
+say "targets:".
+nob_show with Y.
+
+say "".
+say "all three libraries speak pure ShimbaBomb.".

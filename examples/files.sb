@@ -1,0 +1,6 @@
+SB
+
+write_file with "/tmp/sb_test.txt" and "hello file".
+say "exists: " plus file_exists with "/tmp/sb_test.txt".
+append_file with "/tmp/sb_test.txt" and " plus more".
+say read_file with "/tmp/sb_test.txt".

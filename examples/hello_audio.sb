@@ -1,0 +1,10 @@
+SB
+# greets you out loud — needs hello.wav installed by the sound setup
+set home to trim with run with "echo $HOME".
+set snd to home plus "/.local/share/shimbabomb/sounds/hello.wav".
+if file_exists with snd then
+    say "playing hello...".
+    play with snd.
+otherwise
+    say "hello! (no wav found at " plus snd plus ")".
+end
