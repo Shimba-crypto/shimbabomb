@@ -219,11 +219,20 @@ shimgui_run <span class="k">with</span>.</pre>
 </div>
 
 <h2><span class="num">4</span>install it</h2>
+
+<div class="card">
+  <span class="cap">linux / mac / wsl</span>
+<pre><span class="c"># one line — needs git + gcc + libgtk-3-dev</span>
+curl -sL https://shimbabomb.pages.dev/install.sh | bash</pre>
+</div>
+
 <div class="card alt">
-<pre>git clone https://github.com/Shimba-crypto/shimbabomb.git
-cd shimbabomb
-./install.sh              <span class="c"># grabs gtk/curl deps, builds, installs</span>
-sb examples/hello.sb      <span class="c"># boom.</span></pre>
+  <span class="cap">windows</span>
+<pre><span class="c"># download the .exe installer</span>
+<a href="https://github.com/Shimba-crypto/shimbabomb/releases/latest">github.com/.../releases/latest</a>
+
+<span class="c"># or if you have winget</span>
+winget install ShimbaBomb</pre>
 </div>
 
 <p>
@@ -235,6 +244,7 @@ sb examples/hello.sb      <span class="c"># boom.</span></pre>
 <ul class="hand">
   <li><b>sb</b> — interpreter, REPL, debugger, LSP, formatter</li>
   <li><b>sb build</b> — compile to a standalone native binary</li>
+  <li><b>ketiwe</b> — from-scratch X11 pixel GUI, zero deps, no GTK</li>
   <li><b>shimgui</b> — real GTK windows, labels, buttons, inputs</li>
   <li><b>serve / fetch</b> — web server + http client, built in</li>
   <li><b>sb pack deb|rpm|exe</b> — ship it as installers</li>
