@@ -44,7 +44,7 @@ See `sb-ai-test/PROMPT_FOR_AI.md` and `~/.config/opencode/skills/shimbabomb/SKIL
 
 ## Docs
 
-Hosted at `https://shimbabomb.pages.dev` (Cloudflare Pages).
+Hosted at `https://shimbabomb.pages.dev`.
 
 ## License
 
