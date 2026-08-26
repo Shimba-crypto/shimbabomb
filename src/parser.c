@@ -188,6 +188,16 @@ static AstNode *parse_primary(Parser *p) {
         parser_expect(p, TOKEN_END, "expected 'end' after fn body");
         return node_lambda(params, pc, body, line);
     }
+    if (parser_check(p, TOKEN_LAMBDA)) {
+        int line = p->current.line;
+        parser_advance(p);
+        char **params = NULL;
+        int pc = parse_params(p, &params);
+        parser_expect(p, TOKEN_AS, "expected 'as' after lambda params");
+        AstNode *body = parse_block(p);
+        parser_expect(p, TOKEN_END, "expected 'end' after lambda body");
+        return node_lambda(params, pc, body, line);
+    }
     if (parser_check(p, TOKEN_NEW)) {
         int line = p->current.line;
         parser_advance(p);
@@ -449,6 +459,36 @@ static AstNode *parse_statement(Parser *p) {
             parser_advance(p);
         } else {
             parser_error(p, "expected a module name after 'pls bring'");
+            return node_number(0, line);
+        }
+        char *alias = NULL;
+        if (parser_match(p, TOKEN_AS)) {
+            alias = parser_expect(p, TOKEN_IDENTIFIER, "expected alias after 'as'");
+        }
+        AstNode *n = node_import(mod, alias, line);
+        free(mod); free(alias);
+        return n;
+    }
+
+    // standalone "bring maths as m." — same as "pls bring maths as m."
+    if (parser_check(p, TOKEN_BRING)) {
+        int line = p->current.line;
+        parser_advance(p);
+        // "bring." alone → load all std libs
+        if (parser_check(p, TOKEN_DOT) || parser_check(p, TOKEN_EOF)) {
+            return node_import(NULL, NULL, line);
+        }
+        char *mod = NULL;
+        if (parser_check(p, TOKEN_STRING)) {
+            mod = malloc(p->current.length - 1);
+            memcpy(mod, p->current.start + 1, p->current.length - 2);
+            mod[p->current.length - 2] = '\0';
+            parser_advance(p);
+        } else if (parser_check(p, TOKEN_IDENTIFIER)) {
+            mod = copy_token(p);
+            parser_advance(p);
+        } else {
+            parser_error(p, "expected a module name after 'bring'");
             return node_number(0, line);
         }
         char *alias = NULL;

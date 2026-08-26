@@ -303,13 +303,23 @@ static int handle_install(int argc, char **argv) {
 }
 
 static int handle_update(void) {
-    // read current VERSION
+    // read current VERSION (try cwd, then installed dir, then exe dir)
     char cur_ver[32] = "v0.0.0";
+    char vpath[1024];
     FILE *vf = fopen("VERSION", "rb");
     if (!vf) {
-        char vpath[1024];
         snprintf(vpath, sizeof(vpath), "%s/VERSION", SB_SRC_DIR);
         vf = fopen(vpath, "rb");
+    }
+    if (!vf) {
+        ssize_t len = readlink("/proc/self/exe", vpath, sizeof(vpath)-1);
+        if (len > 0) {
+            vpath[len] = '\0';
+            char *slash = strrchr(vpath, '/');
+            if (slash) { *slash = '\0'; char vp2[1024]; snprintf(vp2, sizeof(vp2), "%s/../share/shimbabomb/VERSION", vpath); vf = fopen(vp2, "rb");
+                if (!vf) { snprintf(vp2, sizeof(vp2), "%s/../../VERSION", vpath); vf = fopen(vp2, "rb"); }
+            }
+        }
     }
     if (vf) { if (fgets(cur_ver, sizeof(cur_ver), vf)) cur_ver[strcspn(cur_ver, "\r\n")] = '\0'; fclose(vf); }
     printf("Current version: %s\n", cur_ver);
@@ -341,13 +351,22 @@ static int handle_update(void) {
         printf("Already up to date!\n");
         return 0;
     }
+    // don't downgrade if local is ahead of release
+    if (strcmp(cur_ver, latest) > 0) {
+        printf("Already up to date! (local %s ahead of release %s)\n", cur_ver, latest);
+        return 0;
+    }
 
     printf("Updating %s -> %s ...\n", cur_ver, latest);
 
-    // download the release install.sh and run it
-    char url[1024];
+    // try tag-specific install.sh, fallback to main
+    char url[1024], url2[1024];
     snprintf(url, sizeof(url), "https://raw.githubusercontent.com/Shimba-crypto/shimbabomb/%s/install.sh", latest);
-    snprintf(cmd, sizeof(cmd), "curl -sL '%s' | bash", url);
+    snprintf(url2, sizeof(url2), "https://raw.githubusercontent.com/Shimba-crypto/shimbabomb/main/install.sh");
+    char test[2048];
+    snprintf(test, sizeof(test), "curl -fsSL '%s' -o /tmp/sb_install_test.sh 2>/dev/null && head -1 /tmp/sb_install_test.sh | grep -q '^#!/bin/sh'", url);
+    const char *use_url = (system(test) == 0) ? url : url2;
+    snprintf(cmd, sizeof(cmd), "curl -fsSL '%s' | bash", use_url);
     printf("Running: %s\n", cmd);
     return system(cmd);
 }
@@ -374,6 +393,7 @@ static void print_help(void) {
     if (vf) { if (fgets(ver, sizeof(ver), vf)) ver[strcspn(ver, "\r\n")] = '\0'; fclose(vf); }
     printf("ShimbaBomb %s — English-like scripting\n", ver);
     printf("Usage:\n");
+    printf("  sb run <file.sb>         Run file (alias for sb <file.sb>)\n");
     printf("  sb [file.sb] [-i] [--noconsole]  Run file, -i stays in REPL, --noconsole hides console (window only)\n");
     printf("  sb                       REPL with history, try 'help'\n");
     printf("  sb update                Auto-update to latest release from GitHub\n");
@@ -1381,6 +1401,12 @@ int main(int argc, char **argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "watch") == 0) {
         return handle_watch();
+    }
+    if (argc >= 2 && strcmp(argv[1], "run") == 0) {
+        if (argc < 3) { fprintf(stderr, "Usage: sb run <file>\n"); return 1; }
+        argv[1] = argv[2];
+        if (argc == 3) argc = 2;
+        else { argv[2] = argv[3]; argc--; }
     }
     if (argc >= 2 && strcmp(argv[1], "fmt") == 0) {
         return handle_fmt(argc >= 3 ? argv[2] : NULL);

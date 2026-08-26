@@ -141,6 +141,7 @@ cp "$TMPBIN" "$BIN_DIR/sb"
 chmod +x "$BIN_DIR/sb"
 cp "$SRC_DIR"/*.c "$SRC_DIR"/*.h "$DATA_DIR/src/"
 cp "$STD_DIR"/*.sb "$DATA_DIR/std/" 2>/dev/null || true
+cp "$SCRIPT_DIR/VERSION" "$DATA_DIR/VERSION" 2>/dev/null || echo "v1.13.0" > "$DATA_DIR/VERSION"
 
 # bundle vendor libs for self-contained install (makes sb a real self-contained lang)
 VENDOR_LIB="$DATA_DIR/lib"

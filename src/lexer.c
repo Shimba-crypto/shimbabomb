@@ -67,6 +67,7 @@ static TokenType resolve_keyword(Lexer *l) {
             return check_keyword(l, 2, "is", TOKEN_IS);
         case 'l':
             if (len==4 && !memcmp(s,"less",4)) return TOKEN_LESS;
+            if (len==6 && !memcmp(s,"lambda",6)) return TOKEN_LAMBDA;
             return check_keyword(l, 4, "loop", TOKEN_LOOP);
         case 'm':
             if (len==3 && !memcmp(s,"mod",3)) return TOKEN_MOD;
@@ -280,7 +281,7 @@ const char *token_type_name(TokenType type) {
         case TOKEN_SELF: return "SELF";       case TOKEN_WHILE: return "WHILE";
         case TOKEN_BREAK: return "BREAK";     case TOKEN_CONTINUE: return "CONTINUE";
         case TOKEN_MATCH: return "MATCH";     case TOKEN_ASSERT: return "ASSERT";
-        case TOKEN_FN: return "FN";
+        case TOKEN_FN: return "FN";         case TOKEN_LAMBDA: return "LAMBDA";
         case TOKEN_NOTEQ: return "NOTEQ"; case TOKEN_MOD: return "MOD";
         case TOKEN_INTDIV: return "INTDIV"; case TOKEN_OR: return "OR";
         case TOKEN_PLS: return "PLS";         case TOKEN_BRING: return "BRING";
