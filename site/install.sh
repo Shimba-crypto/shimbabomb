@@ -29,7 +29,17 @@ SRC_DIR="$SCRIPT_DIR/src"
 STD_DIR="$SCRIPT_DIR/std"
 
 if [ ! -f "$SRC_DIR/main.c" ]; then
+    # piped from web — clone source to temp dir, then re-run from there
+    if command -v git >/dev/null 2>&1; then
+        TMPDIR="$(mktemp -d)"
+        echo "Downloading ShimbaBomb source..."
+        git clone --depth 1 https://github.com/Shimba-crypto/shimbabomb.git "$TMPDIR/shimbabomb" 2>/dev/null
+        if [ -f "$TMPDIR/shimbabomb/src/main.c" ]; then
+            exec sh "$TMPDIR/shimbabomb/install.sh" "$@"
+        fi
+    fi
     echo "install.sh: run this from the shimbabomb repo root (src/ not found)"
+    echo "Or install git first, then: curl -sL https://shimbabomb.pages.dev/install.sh | bash"
     exit 1
 fi
 
@@ -142,13 +152,13 @@ if command -v ldd >/dev/null 2>&1 && [ -f "$BIN_DIR/sb" ]; then
         cp -L -n "$lib" "$VENDOR_LIB/" 2>/dev/null || true
     done
     if [ -f "$VENDOR_LIB/libgtk-3.so.0" ]; then
-        mv "$BIN_DIR/sb" "$BIN_DIR/sb.real"
-        cat > "$BIN_DIR/sb" <<'EOSBWRAP'
-#!/bin/sh
-VENDOR="$HOME/.local/share/shimbabomb/lib"
-if [ -d "$VENDOR" ]; then export LD_LIBRARY_PATH="$VENDOR:$LD_LIBRARY_PATH"; fi
-DIR="$(dirname "$0")"
-exec -a sb "$DIR/sb.real" "$@"
+        mv "$BIN_DIR/sb" "$BIN_DIR/sb.${VER}"
+        cat > "$BIN_DIR/sb" <<EOSBWRAP
+#!/bin/bash
+VENDOR="\$HOME/.local/share/shimbabomb/lib"
+if [ -d "\$VENDOR" ]; then export LD_LIBRARY_PATH="\$VENDOR:\$LD_LIBRARY_PATH"; fi
+DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+exec -a sb "\$DIR/sb.${VER}" "\$@"
 EOSBWRAP
         chmod +x "$BIN_DIR/sb"
     fi

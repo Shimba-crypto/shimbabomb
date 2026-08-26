@@ -29,7 +29,17 @@ SRC_DIR="$SCRIPT_DIR/src"
 STD_DIR="$SCRIPT_DIR/std"
 
 if [ ! -f "$SRC_DIR/main.c" ]; then
+    # piped from web — clone source to temp dir, then re-run from there
+    if command -v git >/dev/null 2>&1; then
+        TMPDIR="$(mktemp -d)"
+        echo "Downloading ShimbaBomb source..."
+        git clone --depth 1 https://github.com/Shimba-crypto/shimbabomb.git "$TMPDIR/shimbabomb" 2>/dev/null
+        if [ -f "$TMPDIR/shimbabomb/src/main.c" ]; then
+            exec sh "$TMPDIR/shimbabomb/install.sh" "$@"
+        fi
+    fi
     echo "install.sh: run this from the shimbabomb repo root (src/ not found)"
+    echo "Or install git first, then: curl -sL https://shimbabomb.pages.dev/install.sh | bash"
     exit 1
 fi
 
