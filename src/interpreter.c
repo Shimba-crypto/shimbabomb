@@ -31,6 +31,7 @@
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 #include <dlfcn.h>
+#include "ketiwe.h"
 
 // lazy-load handles — libs stay on disk until first window/fetch (your idea: keep all, load only when used)
 static void *shim_gtk_handle = NULL;
@@ -843,6 +844,65 @@ static Value native_shimgui_button(int argc, Value *args) { (void)argc;(void)arg
 static Value native_shimgui_entry(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
 static Value native_shimgui_run(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
 #endif
+
+// ── Ketiwe GUI: from-scratch X11 pixel toolkit (no GTK/WebKit) ───────
+static Value native_ketiwe_window(int argc, Value *args) {
+    const char *title = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "SB Window";
+    int w = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 640;
+    int h = (argc > 2 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 480;
+    return ketiwe_window(title, w, h) ? val_number(1) : val_error("ketiwe_window: cannot open display");
+}
+
+static Value native_ketiwe_rect(int argc, Value *args) {
+    if (argc < 5) return val_error("ketiwe_rect needs 5 args: x, y, w, h, color");
+    int x = (int)args[0].as.number;
+    int y = (int)args[1].as.number;
+    int w = (int)args[2].as.number;
+    int h = (int)args[3].as.number;
+    unsigned color = 0;
+    if (args[4].type == VAL_NUMBER) {
+        color = (unsigned)args[4].as.number;
+    } else if (args[4].type == VAL_STRING) {
+        const char *s = args[4].as.string;
+        if (s[0] == '#') s++;
+        color = (unsigned)strtol(s, NULL, 16);
+    }
+    ketiwe_rect(x, y, w, h, color);
+    return val_nil();
+}
+
+static Value native_ketiwe_text(int argc, Value *args) {
+    if (argc < 3) return val_error("ketiwe_text needs 3 args: x, y, text");
+    int x = (int)args[0].as.number;
+    int y = (int)args[1].as.number;
+    const char *text = (args[2].type == VAL_STRING) ? args[2].as.string : "";
+    ketiwe_text(x, y, text);
+    return val_nil();
+}
+
+static Value native_ketiwe_button(int argc, Value *args) {
+    if (argc < 5) return val_error("ketiwe_button needs 5 args: x, y, w, h, label");
+    int x = (int)args[0].as.number;
+    int y = (int)args[1].as.number;
+    int w = (int)args[2].as.number;
+    int h = (int)args[3].as.number;
+    const char *label = (args[4].type == VAL_STRING) ? args[4].as.string : "";
+    return val_number(ketiwe_button(x, y, w, h, label));
+}
+
+static Value native_ketiwe_poll(int argc, Value *args) {
+    (void)argc; (void)args;
+    return val_number(ketiwe_poll());
+}
+
+static Value native_ketiwe_flip(int argc, Value *args) {
+    (void)argc; (void)args;
+    ketiwe_flip();
+    return val_nil();
+}
+static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_x()); }
+static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_y()); }
+static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_down()); }
 
 static Value native_type_of(int argc, Value *args) {
     if (argc < 1) return val_string("nothing");
@@ -1924,6 +1984,15 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "shimgui_button", val_native(native_shimgui_button, "shimgui_button"));
     env_set(interp->global, "shimgui_entry",  val_native(native_shimgui_entry,  "shimgui_entry"));
     env_set(interp->global, "shimgui_run",    val_native(native_shimgui_run,    "shimgui_run"));
+    env_set(interp->global, "ketiwe_window",     val_native(native_ketiwe_window,     "ketiwe_window"));
+    env_set(interp->global, "ketiwe_rect",       val_native(native_ketiwe_rect,       "ketiwe_rect"));
+    env_set(interp->global, "ketiwe_text",       val_native(native_ketiwe_text,       "ketiwe_text"));
+    env_set(interp->global, "ketiwe_button",     val_native(native_ketiwe_button,     "ketiwe_button"));
+    env_set(interp->global, "ketiwe_poll",       val_native(native_ketiwe_poll,       "ketiwe_poll"));
+    env_set(interp->global, "ketiwe_flip",       val_native(native_ketiwe_flip,       "ketiwe_flip"));
+    env_set(interp->global, "ketiwe_mouse_x",    val_native(native_ketiwe_mouse_x,    "ketiwe_mouse_x"));
+    env_set(interp->global, "ketiwe_mouse_y",    val_native(native_ketiwe_mouse_y,    "ketiwe_mouse_y"));
+    env_set(interp->global, "ketiwe_mouse_down", val_native(native_ketiwe_mouse_down, "ketiwe_mouse_down"));
     env_set(interp->global, "read_file",  val_native(native_read_file,  "read_file"));
     env_set(interp->global, "write_file", val_native(native_write_file, "write_file"));
     env_set(interp->global, "append_file",val_native(native_append_file,"append_file"));

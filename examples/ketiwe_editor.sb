@@ -1,0 +1,209 @@
+SB
+## Ketiwe Editor — free DOM, click to add/move anything
+## Toolbar at top: add Rect / Text / Button anywhere on canvas
+
+ketiwe_window("Ketiwe Editor — free DOM", 900, 600)
+
+set placing to "none"
+set close to 0
+set elements to list()
+set dragging to -1
+set offset_x to 0
+set offset_y to 0
+
+## preload the demo boxes so you can see/edit them
+set e1 to map()
+set e1["type"] to "rect"
+set e1["x"] to 20
+set e1["y"] to 80
+set e1["w"] to 280
+set e1["h"] to 80
+set e1["color"] to "#7c5ce0"
+set e1["label"] to "Ketiwe raw X11 pixels"
+add_to(elements, e1)
+
+set e2 to map()
+set e2["type"] to "rect"
+set e2["x"] to 320
+set e2["y"] to 80
+set e2["w"] to 280
+set e2["h"] to 80
+set e2["color"] to "#a78bfa"
+set e2["label"] to "No GTK/WebKit"
+add_to(elements, e2)
+
+set e3 to map()
+set e3["type"] to "button"
+set e3["x"] to 20
+set e3["y"] to 190
+set e3["w"] to 120
+set e3["h"] to 45
+set e3["color"] to "#a78bfa"
+set e3["label"] to "Click Me"
+add_to(elements, e3)
+
+set e4 to map()
+set e4["type"] to "button"
+set e4["x"] to 160
+set e4["y"] to 190
+set e4["w"] to 120
+set e4["h"] to 45
+set e4["color"] to "#a78bfa"
+set e4["label"] to "Quit"
+add_to(elements, e4)
+
+while close is 0 then
+  ketiwe_rect(0, 0, 900, 600, "#12081f")
+
+  ## title bar
+  ketiwe_rect(0, 0, 900, 60, "#0d0a1a")
+  ketiwe_text(20, 25, "Ketiwe Editor — click canvas to place, drag to move")
+  ketiwe_text(20, 45, "Mode: ${placing}  |  Elements: ${length(elements)}  |  Esc to quit")
+
+  ## toolbar
+  ketiwe_rect(0, 60, 900, 50, "#1a1025")
+  set btn_rect to ketiwe_button(10, 68, 100, 34, "+ Rect")
+  if btn_rect is 1 then
+    set placing to "rect"
+  end
+  set btn_text to ketiwe_button(120, 68, 100, 34, "+ Text")
+  if btn_text is 1 then
+    set placing to "text"
+  end
+  set btn_btn to ketiwe_button(230, 68, 110, 34, "+ Button")
+  if btn_btn is 1 then
+    set placing to "button"
+  end
+  set btn_clear to ketiwe_button(350, 68, 80, 34, "Clear")
+  if btn_clear is 1 then
+    set elements to list()
+    set placing to "none"
+    ## re-add defaults after clear so canvas not empty
+    add_to(elements, e1)
+    add_to(elements, e2)
+  end
+  set btn_save to ketiwe_button(440, 68, 80, 34, "Save")
+  if btn_save is 1 then
+    set out to "["
+    set last_idx to length(elements) - 1
+    count i from 0 to last_idx then
+      set el to item(elements, i)
+      set out to out + to_json(el)
+      if i < last_idx then
+        set out to out + ","
+      end
+    end
+    set out to out + "]"
+    write_file("ketiwe_layout.json", out)
+    set placing to "saved!"
+  end
+
+  ## canvas border
+  ketiwe_rect(10, 115, 880, 470, "#1e1430")
+  ketiwe_rect(12, 117, 876, 466, "#12081f")
+
+  ## draw elements
+  count idx from 0 to length(elements) - 1 then
+    set el to item(elements, idx)
+    set ex to el["x"]
+    set ey to el["y"]
+    set ew to el["w"]
+    set eh to el["h"]
+    set ecol to el["color"]
+    set etype to el["type"]
+    set elab to el["label"]
+
+    if etype is "rect" then
+      ketiwe_rect(ex, ey, ew, eh, ecol)
+      ketiwe_text(ex + 10, ey + 20, elab)
+    end
+    if etype is "button" then
+      set pr to ketiwe_button(ex, ey, ew, eh, elab)
+      if pr is 1 then
+        say "${elab} pressed"
+      end
+    end
+    if etype is "text" then
+      ketiwe_text(ex, ey, elab)
+    end
+  end
+
+  ## hint in canvas
+  ketiwe_text(20, 580, "Click below toolbar to place: ${placing}  (drag existing to move)")
+
+  ## mouse handling for free placement
+  set mx to ketiwe_mouse_x()
+  set my to ketiwe_mouse_y()
+  set md to ketiwe_mouse_down()
+
+  if md is 1 then
+    if my > 115 then
+      if placing is "rect" then
+        set ne to map()
+        set ne["type"] to "rect"
+        set ne["x"] to mx - 40
+        set ne["y"] to my - 20
+        set ne["w"] to 140
+        set ne["h"] to 50
+        set ne["color"] to "#7c5ce0"
+        set ne["label"] to "New Rect"
+        add_to(elements, ne)
+        set placing to "none"
+      end
+      if placing is "text" then
+        set ne to map()
+        set ne["type"] to "text"
+        set ne["x"] to mx
+        set ne["y"] to my
+        set ne["w"] to 100
+        set ne["h"] to 20
+        set ne["color"] to "#f4f0ff"
+        set ne["label"] to "Hello"
+        add_to(elements, ne)
+        set placing to "none"
+      end
+      if placing is "button" then
+        set ne to map()
+        set ne["type"] to "button"
+        set ne["x"] to mx - 60
+        set ne["y"] to my - 15
+        set ne["w"] to 120
+        set ne["h"] to 34
+        set ne["color"] to "#a78bfa"
+        set ne["label"] to "New Btn"
+        add_to(elements, ne)
+        set placing to "none"
+      end
+      if placing is "none" then
+        ## try to pick element to drag
+        count j from 0 to length(elements) - 1 then
+          set jel to item(elements, j)
+          set jx to jel["x"]
+          set jy to jel["y"]
+          set jw to jel["w"]
+          set jh to jel["h"]
+          if mx >= jx and mx < jx + jw and my >= jy and my < jy + jh then
+            set dragging to j
+            set offset_x to mx - jx
+            set offset_y to my - jy
+          end
+        end
+      end
+    end
+  end
+
+  if md is 0 and dragging >= 0 then
+    set dragging to -1
+  end
+
+  if dragging >= 0 and md is 1 then
+    set del to item(elements, dragging)
+    set del["x"] to mx - offset_x
+    set del["y"] to my - offset_y
+  end
+
+  ketiwe_flip()
+  set close to ketiwe_poll()
+end
+
+say "Editor closed — saved to ketiwe_layout.json if you hit Save"

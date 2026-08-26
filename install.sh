@@ -111,16 +111,19 @@ WEBKIT_CFLAGS=$(pkg-config --cflags webkit2gtk-4.1 2>/dev/null || pkg-config --c
 WEBKIT_LIBS=$(pkg-config --libs webkit2gtk-4.1 2>/dev/null || pkg-config --libs webkit2gtk-4.0 2>/dev/null || echo "")
 CURL_CFLAGS=$(pkg-config --cflags libcurl 2>/dev/null || echo "")
 CURL_LIBS=$(pkg-config --libs libcurl 2>/dev/null || echo "-lcurl")
+X11_CFLAGS=$(pkg-config --cflags x11 2>/dev/null || echo "")
+X11_LIBS=$(pkg-config --libs x11 2>/dev/null || echo "-lX11")
 
 TMPBIN="$(mktemp -d)/sb"
 gcc -std=c11 -Wall -O2 \
-    $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS \
+    $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS $X11_CFLAGS \
     -DSB_STD_DIR="\"$DATA_DIR/std\"" \
     -DSB_SRC_DIR="\"$DATA_DIR\"" \
     -o "$TMPBIN" \
     "$SRC_DIR/lexer.c" "$SRC_DIR/ast.c" "$SRC_DIR/value.c" \
     "$SRC_DIR/parser.c" "$SRC_DIR/interpreter.c" "$SRC_DIR/main.c" \
-    -Wl,--as-needed $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS -lreadline -lm -ldl
+    "$SRC_DIR/ketiwe.c" \
+    -Wl,--as-needed $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $X11_LIBS -lreadline -lm -ldl
 
 # ---------- install ----------
 mkdir -p "$BIN_DIR" "$DATA_DIR/src" "$DATA_DIR/std"
@@ -145,7 +148,7 @@ if command -v ldd >/dev/null 2>&1 && [ -f "$BIN_DIR/sb" ]; then
 VENDOR="$HOME/.local/share/shimbabomb/lib"
 if [ -d "$VENDOR" ]; then export LD_LIBRARY_PATH="$VENDOR:$LD_LIBRARY_PATH"; fi
 DIR="$(dirname "$0")"
-exec "$DIR/sb.real" "$@"
+exec -a sb "$DIR/sb.real" "$@"
 EOSBWRAP
         chmod +x "$BIN_DIR/sb"
     fi

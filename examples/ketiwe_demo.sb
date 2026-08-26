@@ -1,0 +1,42 @@
+SB
+## Ketiwe GUI demo — from-scratch X11 pixel toolkit, no GTK/WebKit
+## Opens a window, draws shapes, handles button clicks
+
+say "Opening Ketiwe window..."
+
+ketiwe_window("Ketiwe Demo", 640, 400)
+
+set close to 0
+set clicks to 0
+
+while close is 0 then
+  ketiwe_rect(0, 0, 640, 400, "#12081f")
+
+  ketiwe_rect(20, 20, 280, 100, "#7c5ce0")
+  ketiwe_rect(340, 20, 280, 100, "#a78bfa")
+
+  ketiwe_text(40, 50, "Ketiwe — raw X11 pixels")
+  ketiwe_text(360, 50, "No GTK/WebKit")
+
+  ketiwe_text(40, 80, "Click count: ${clicks}")
+
+  set pressed to ketiwe_button(20, 160, 140, 50, "Click Me")
+  if pressed is 1 then
+    set clicks to clicks + 1
+  end
+
+  set close_btn to ketiwe_button(180, 160, 140, 50, "Quit")
+  if close_btn is 1 then
+    set close to 1
+  end
+
+  ketiwe_rect(20, 260, 600, 120, "#1a1025")
+  ketiwe_text(30, 290, "Ketiwe GUI — pure X11 double-buffered")
+  ketiwe_text(30, 315, "Draws rects, text, buttons with hover tracking")
+  ketiwe_text(30, 340, "Escape or Quit button exits the loop")
+
+  ketiwe_flip()
+  set close to ketiwe_poll()
+end
+
+say "Done! Clicked ${clicks} times."

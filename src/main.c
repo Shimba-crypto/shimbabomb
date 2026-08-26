@@ -5,8 +5,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <fcntl.h>
 #ifndef _WIN32
 #include <sys/utsname.h>
+#include <sys/prctl.h>
 #endif
 #ifdef _WIN32
 #define TokenType SB_WIN_TOKEN_TYPE
@@ -301,9 +303,26 @@ static int handle_install(int argc, char **argv) {
 }
 
 static void print_help(void) {
-    printf("ShimbaBomb v0.2 — English-like scripting\n");
+    char ver[32] = "v1.11.0";
+    char vpath[1024];
+    FILE *vf = fopen("VERSION", "rb");
+    if (!vf) {
+        snprintf(vpath, sizeof(vpath), "%s/VERSION", SB_SRC_DIR);
+        vf = fopen(vpath, "rb");
+    }
+    if (!vf) {
+        char exe_path[1024];
+        ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
+        if (len > 0) {
+            exe_path[len] = '\0';
+            char *slash = strrchr(exe_path, '/');
+            if (slash) { *slash = '\0'; snprintf(vpath, sizeof(vpath), "%s/../../VERSION", exe_path); vf = fopen(vpath, "rb"); }
+        }
+    }
+    if (vf) { if (fgets(ver, sizeof(ver), vf)) ver[strcspn(ver, "\r\n")] = '\0'; fclose(vf); }
+    printf("ShimbaBomb %s — English-like scripting\n", ver);
     printf("Usage:\n");
-    printf("  sb [file.sb] [-i]        Run file, -i stays in REPL after\n");
+    printf("  sb [file.sb] [-i] [--noconsole]  Run file, -i stays in REPL, --noconsole hides console (window only)\n");
     printf("  sb                       REPL with history, try 'help'\n");
     printf("  sb install <pkg>         Install package to sb_modules/\n");
     printf("  sb install .             Install from shimba.toml/sb.toml [dependencies]\n");
@@ -1276,6 +1295,28 @@ static int handle_web_repl(int port) {
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    // set process title so Task Manager shows "sb.v1.11.0" not "sb.real"
+#ifndef _WIN32
+    {
+        char title[64] = "sb";
+        FILE *vf = fopen("VERSION", "rb");
+        if (!vf) {
+            char vpath[1024];
+            snprintf(vpath, sizeof(vpath), "%s/VERSION", SB_SRC_DIR);
+            vf = fopen(vpath, "rb");
+        }
+        if (vf) {
+            char ver[32];
+            if (fgets(ver, sizeof(ver), vf)) {
+                ver[strcspn(ver, "\r\n")] = '\0';
+                snprintf(title, sizeof(title), "sb.%s", ver);
+            }
+            fclose(vf);
+        }
+        prctl(PR_SET_NAME, title);
+    }
+#endif
+
     if (argc >= 2 && strcmp(argv[1], "install") == 0) {
         return handle_install(argc, argv);
     }
@@ -1332,13 +1373,38 @@ int main(int argc, char **argv) {
 
     int interactive = 0;
     int debug_mode = 0;
+    int noconsole = 0;
     const char *path = NULL;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-i") == 0) interactive = 1;
         else if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) debug_mode = 1;
+        else if (strcmp(argv[i], "--noconsole")==0 || strcmp(argv[i], "--no-console")==0 ||
+                 strcmp(argv[i], "--nocon")==0 || strcmp(argv[i], "--nocil")==0 ||
+                 strcmp(argv[i], "--window")==0 || strcmp(argv[i], "-w")==0) noconsole = 1;
         else if (argv[i][0] != '-' && !path) path = argv[i];
         else if (strcmp(argv[i], "--help")==0) { print_help(); return 0; }
     }
+    // --noconsole: fork to background, detach console, window stays (Ketiwe / any GUI)
+#ifndef _WIN32
+    if (noconsole && path) {
+        pid_t pid = fork();
+        if (pid < 0) { perror("sb --noconsole fork"); return 1; }
+        if (pid > 0) {
+            printf("[sb] %s → background pid %d (no console)\n", path, (int)pid);
+            return 0;
+        }
+        setsid();
+        // detach stdio so terminal returns immediately; X11 display stays open
+        int fd = open("/dev/null", O_RDWR);
+        if (fd >= 0) {
+            dup2(fd, STDIN_FILENO);
+            // keep stdout/stderr for GUI errors on Linux; comment out next two lines if you want full silence:
+            // dup2(fd, STDOUT_FILENO);
+            // dup2(fd, STDERR_FILENO);
+            if (fd > 2) close(fd);
+        }
+    }
+#endif
 
     Interpreter interp;
     interp_init(&interp);
