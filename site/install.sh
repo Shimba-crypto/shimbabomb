@@ -142,13 +142,13 @@ if command -v ldd >/dev/null 2>&1 && [ -f "$BIN_DIR/sb" ]; then
         cp -L -n "$lib" "$VENDOR_LIB/" 2>/dev/null || true
     done
     if [ -f "$VENDOR_LIB/libgtk-3.so.0" ]; then
-        mv "$BIN_DIR/sb" "$BIN_DIR/sb.${VER}"
-        cat > "$BIN_DIR/sb" <<EOSBWRAP
-#!/bin/bash
-VENDOR="\$HOME/.local/share/shimbabomb/lib"
-if [ -d "\$VENDOR" ]; then export LD_LIBRARY_PATH="\$VENDOR:\$LD_LIBRARY_PATH"; fi
-DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-exec -a sb "\$DIR/sb.${VER}" "\$@"
+        mv "$BIN_DIR/sb" "$BIN_DIR/sb.real"
+        cat > "$BIN_DIR/sb" <<'EOSBWRAP'
+#!/bin/sh
+VENDOR="$HOME/.local/share/shimbabomb/lib"
+if [ -d "$VENDOR" ]; then export LD_LIBRARY_PATH="$VENDOR:$LD_LIBRARY_PATH"; fi
+DIR="$(dirname "$0")"
+exec -a sb "$DIR/sb.real" "$@"
 EOSBWRAP
         chmod +x "$BIN_DIR/sb"
     fi

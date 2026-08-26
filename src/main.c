@@ -302,6 +302,56 @@ static int handle_install(int argc, char **argv) {
     return 1;
 }
 
+static int handle_update(void) {
+    // read current VERSION
+    char cur_ver[32] = "v0.0.0";
+    FILE *vf = fopen("VERSION", "rb");
+    if (!vf) {
+        char vpath[1024];
+        snprintf(vpath, sizeof(vpath), "%s/VERSION", SB_SRC_DIR);
+        vf = fopen(vpath, "rb");
+    }
+    if (vf) { if (fgets(cur_ver, sizeof(cur_ver), vf)) cur_ver[strcspn(cur_ver, "\r\n")] = '\0'; fclose(vf); }
+    printf("Current version: %s\n", cur_ver);
+
+    // fetch latest tag from GitHub API
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "curl -sL https://api.github.com/repos/Shimba-crypto/shimbabomb/releases/latest");
+    FILE *p = popen(cmd, "r");
+    if (!p) { fprintf(stderr, "sb update: cannot reach GitHub\n"); return 1; }
+    char buf[4096] = {0};
+    fread(buf, 1, sizeof(buf)-1, p);
+    pclose(p);
+
+    // extract tag_name from JSON: "tag_name": "vX.Y.Z"
+    char *tag = strstr(buf, "\"tag_name\"");
+    if (!tag) { fprintf(stderr, "sb update: could not find latest version\n"); return 1; }
+    tag = strchr(tag, ':');
+    if (!tag) { fprintf(stderr, "sb update: bad response\n"); return 1; }
+    tag++;
+    while (*tag == ' ' || *tag == '"') tag++;
+    char latest[32] = {0};
+    int i = 0;
+    while (*tag && *tag != '"' && i < 31) { latest[i++] = *tag; tag++; }
+    latest[i] = '\0';
+
+    printf("Latest version:  %s\n", latest);
+
+    if (strcmp(cur_ver, latest) == 0) {
+        printf("Already up to date!\n");
+        return 0;
+    }
+
+    printf("Updating %s -> %s ...\n", cur_ver, latest);
+
+    // download the release install.sh and run it
+    char url[1024];
+    snprintf(url, sizeof(url), "https://raw.githubusercontent.com/Shimba-crypto/shimbabomb/%s/install.sh", latest);
+    snprintf(cmd, sizeof(cmd), "curl -sL '%s' | bash", url);
+    printf("Running: %s\n", cmd);
+    return system(cmd);
+}
+
 static void print_help(void) {
     char ver[32] = "v1.11.0";
     char vpath[1024];
@@ -324,6 +374,7 @@ static void print_help(void) {
     printf("Usage:\n");
     printf("  sb [file.sb] [-i] [--noconsole]  Run file, -i stays in REPL, --noconsole hides console (window only)\n");
     printf("  sb                       REPL with history, try 'help'\n");
+    printf("  sb update                Auto-update to latest release from GitHub\n");
     printf("  sb install <pkg>         Install package to sb_modules/\n");
     printf("  sb install .             Install from shimba.toml/sb.toml [dependencies]\n");
     printf("  sb build <file>          Compile to binary (see sb-build)\n");
@@ -1317,6 +1368,9 @@ int main(int argc, char **argv) {
     }
 #endif
 
+    if (argc >= 2 && strcmp(argv[1], "update") == 0) {
+        return handle_update();
+    }
     if (argc >= 2 && strcmp(argv[1], "install") == 0) {
         return handle_install(argc, argv);
     }
