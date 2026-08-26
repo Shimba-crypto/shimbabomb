@@ -324,17 +324,17 @@ static int handle_update(void) {
     if (vf) { if (fgets(cur_ver, sizeof(cur_ver), vf)) cur_ver[strcspn(cur_ver, "\r\n")] = '\0'; fclose(vf); }
     printf("Current version: %s\n", cur_ver);
 
-    // fetch latest tag from GitHub API
+    // fetch latest tag from GitHub tags API
     char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "curl -sL https://api.github.com/repos/Shimba-crypto/shimbabomb/releases/latest");
+    snprintf(cmd, sizeof(cmd), "curl -sL https://api.github.com/repos/Shimba-crypto/shimbabomb/tags");
     FILE *p = popen(cmd, "r");
     if (!p) { fprintf(stderr, "sb update: cannot reach GitHub\n"); return 1; }
-    char buf[4096] = {0};
+    char buf[8192] = {0};
     fread(buf, 1, sizeof(buf)-1, p);
     pclose(p);
 
-    // extract tag_name from JSON: "tag_name": "vX.Y.Z"
-    char *tag = strstr(buf, "\"tag_name\"");
+    // extract first "name": "vX.Y.Z" from JSON array
+    char *tag = strstr(buf, "\"name\"");
     if (!tag) { fprintf(stderr, "sb update: could not find latest version\n"); return 1; }
     tag = strchr(tag, ':');
     if (!tag) { fprintf(stderr, "sb update: bad response\n"); return 1; }
