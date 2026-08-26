@@ -361,6 +361,7 @@ static void print_help(void) {
         vf = fopen(vpath, "rb");
     }
     if (!vf) {
+#ifndef _WIN32
         char exe_path[1024];
         ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path)-1);
         if (len > 0) {
@@ -368,6 +369,7 @@ static void print_help(void) {
             char *slash = strrchr(exe_path, '/');
             if (slash) { *slash = '\0'; snprintf(vpath, sizeof(vpath), "%s/../../VERSION", exe_path); vf = fopen(vpath, "rb"); }
         }
+#endif
     }
     if (vf) { if (fgets(ver, sizeof(ver), vf)) ver[strcspn(ver, "\r\n")] = '\0'; fclose(vf); }
     printf("ShimbaBomb %s — English-like scripting\n", ver);

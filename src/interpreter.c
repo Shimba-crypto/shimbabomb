@@ -846,6 +846,7 @@ static Value native_shimgui_run(int argc, Value *args) { (void)argc;(void)args; 
 #endif
 
 // ── Ketiwe GUI: from-scratch X11 pixel toolkit (no GTK/WebKit) ───────
+#ifndef SB_NO_GUI
 static Value native_ketiwe_window(int argc, Value *args) {
     const char *title = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "SB Window";
     int w = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 640;
@@ -903,6 +904,17 @@ static Value native_ketiwe_flip(int argc, Value *args) {
 static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_x()); }
 static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_y()); }
 static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_down()); }
+#else
+static Value native_ketiwe_window(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_rect(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_text(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_button(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_poll(int argc, Value *args) { (void)argc;(void)args; return val_number(1); }
+static Value native_ketiwe_flip(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
+static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
+static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(0); }
+#endif
 
 static Value native_type_of(int argc, Value *args) {
     if (argc < 1) return val_string("nothing");
