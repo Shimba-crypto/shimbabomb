@@ -17,6 +17,11 @@ static int mouse_x = -1, mouse_y = -1;
 static int mouse_down = 0;
 static int click_x = -1, click_y = -1;
 static int should_close = 0;
+static int key_pressed = 0;
+static int last_key = 0;
+static char input_bufs[8][256];
+static int input_len[8];
+static int input_focus = -1;
 
 int ketiwe_init(void) {
     if (dpy) return 1;
@@ -60,6 +65,12 @@ void ketiwe_rect(int x, int y, int w, int h, unsigned color) {
     XFillRectangle(dpy, backbuf, backgc, x, y, w, h);
 }
 
+void ketiwe_circle(int cx, int cy, int r, unsigned color) {
+    if (!dpy || !win || !backgc) return;
+    XSetForeground(dpy, backgc, color & 0xFFFFFF);
+    XFillArc(dpy, backbuf, backgc, cx - r, cy - r, r * 2, r * 2, 0, 360 * 64);
+}
+
 void ketiwe_text(int x, int y, const char *text) {
     if (!dpy || !win || !backgc || !text) return;
     XSetForeground(dpy, backgc, 0xf4f0ff);
@@ -85,6 +96,54 @@ int ketiwe_button(int x, int y, int w, int h, const char *label) {
         XDrawString(dpy, backbuf, backgc, fx, fy, label, len);
     }
     return clicked ? 1 : 0;
+}
+
+int ketiwe_input(int x, int y, int w, int h, char *buf, int bufsize, const char *placeholder) {
+    if (!dpy || !win || !backgc) return 0;
+    int idx = 0;
+    for (int i = 0; i < 8; i++) {
+        if (input_bufs[i] == buf || (input_len[i] == 0 && input_bufs[i][0] == '\0')) { idx = i; break; }
+        if (i == 7) idx = 7;
+    }
+    // background
+    XSetForeground(dpy, backgc, 0x1e1e2e);
+    XFillRectangle(dpy, backbuf, backgc, x, y, w, h);
+    // border
+    unsigned border = (input_focus == idx) ? 0xa78bfa : 0x45475a;
+    XSetForeground(dpy, backgc, border);
+    XDrawRectangle(dpy, backbuf, backgc, x, y, w, h);
+    // text
+    if (input_len[idx] > 0) {
+        XSetForeground(dpy, backgc, 0xf4f0ff);
+        if (font) XSetFont(dpy, backgc, font->fid);
+        XDrawString(dpy, backbuf, backgc, x + 6, y + h/2 + 5, input_bufs[idx], input_len[idx]);
+    } else if (placeholder) {
+        XSetForeground(dpy, backgc, 0x6c7086);
+        if (font) XSetFont(dpy, backgc, font->fid);
+        XDrawString(dpy, backbuf, backgc, x + 6, y + h/2 + 5, placeholder, strlen(placeholder));
+    }
+    // click to focus
+    if (click_x >= x && click_x < x+w && click_y >= y && click_y < y+h) {
+        input_focus = idx;
+    }
+    // copy to user buffer
+    if (buf && bufsize > 0) {
+        int copylen = input_len[idx] < bufsize - 1 ? input_len[idx] : bufsize - 1;
+        memcpy(buf, input_bufs[idx], copylen);
+        buf[copylen] = '\0';
+    }
+    return (input_focus == idx) ? 1 : 0;
+}
+
+int ketiwe_key_press(void) {
+    int k = last_key;
+    last_key = 0;
+    return k;
+}
+
+const char *ketiwe_input_text(int index) {
+    if (index < 0 || index >= 8) return "";
+    return input_bufs[index];
 }
 
 int ketiwe_poll(void) {
@@ -114,6 +173,23 @@ int ketiwe_poll(void) {
         } else if (ev.type == KeyPress) {
             KeySym ks = XLookupKeysym(&ev.xkey, 0);
             if (ks == XK_Escape) should_close = 1;
+            last_key = (int)ks;
+            key_pressed = 1;
+            // text input handling
+            if (input_focus >= 0 && input_focus < 8) {
+                char kbuf[8];
+                int klen = XLookupString(&ev.xkey, kbuf, sizeof(kbuf), NULL, NULL);
+                if (ks == XK_BackSpace) {
+                    if (input_len[input_focus] > 0) input_len[input_focus]--;
+                } else if (ks == XK_Return || ks == XK_Tab) {
+                    input_focus = -1;
+                } else if (klen == 1 && kbuf[0] >= 32 && kbuf[0] < 127) {
+                    if (input_len[input_focus] < 255) {
+                        input_bufs[input_focus][input_len[input_focus]++] = kbuf[0];
+                        input_bufs[input_focus][input_len[input_focus]] = '\0';
+                    }
+                }
+            }
         }
     }
     return should_close;
@@ -142,9 +218,13 @@ void ketiwe_close(void) {
 int ketiwe_init(void){return 0;}
 int ketiwe_window(const char *t,int w,int h){(void)t;(void)w;(void)h;return 0;}
 void ketiwe_rect(int x,int y,int w,int h,unsigned c){(void)x;(void)y;(void)w;(void)h;(void)c;}
+void ketiwe_circle(int cx,int cy,int r,unsigned c){(void)cx;(void)cy;(void)r;(void)c;}
 void ketiwe_text(int x,int y,const char *t){(void)x;(void)y;(void)t;}
 int ketiwe_button(int x,int y,int w,int h,const char *l){(void)x;(void)y;(void)w;(void)h;(void)l;return 0;}
+int ketiwe_input(int x,int y,int w,int h,char *b,int bs,const char *ph){(void)x;(void)y;(void)w;(void)h;(void)b;(void)bs;(void)ph;return 0;}
 int ketiwe_poll(void){return 1;}
 void ketiwe_flip(void){}
 void ketiwe_close(void){}
+int ketiwe_key_press(void){return 0;}
+const char *ketiwe_input_text(int i){(void)i;return "";}
 #endif

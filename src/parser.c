@@ -59,17 +59,16 @@ static int starts_call(Parser *p) {
 static int parse_params(Parser *p, char ***out) {
     int cap = 0, count = 0;
     char **params = NULL;
-    if (parser_match(p, TOKEN_WITH)) {
-        if (parser_check(p, TOKEN_AND)) parser_advance(p);
-        while (parser_check(p, TOKEN_IDENTIFIER)) {
-            if (count >= cap) {
-                cap = cap == 0 ? 4 : cap * 2;
-                params = realloc(params, sizeof(char*) * cap);
-            }
-            params[count++] = copy_token(p);
-            parser_advance(p);
-            if (!parser_match(p, TOKEN_AND)) break;
+    parser_match(p, TOKEN_WITH);  // optional 'with'
+    if (parser_check(p, TOKEN_AND)) parser_advance(p);
+    while (parser_check(p, TOKEN_IDENTIFIER)) {
+        if (count >= cap) {
+            cap = cap == 0 ? 4 : cap * 2;
+            params = realloc(params, sizeof(char*) * cap);
         }
+        params[count++] = copy_token(p);
+        parser_advance(p);
+        if (!parser_match(p, TOKEN_AND)) break;
     }
     *out = params;
     return count;
@@ -194,9 +193,28 @@ static AstNode *parse_primary(Parser *p) {
         char **params = NULL;
         int pc = parse_params(p, &params);
         parser_expect(p, TOKEN_AS, "expected 'as' after lambda params");
-        AstNode *body = parse_block(p);
-        parser_expect(p, TOKEN_END, "expected 'end' after lambda body");
-        return node_lambda(params, pc, body, line);
+        // block body: lambda with x as ... end
+        // expression body: lambda x as x * 2.
+        // Heuristic: if next token starts a statement (not an expression), parse block
+        if (parser_check(p, TOKEN_END) ||
+            parser_check(p, TOKEN_DEFINE) || parser_check(p, TOKEN_SET) ||
+            parser_check(p, TOKEN_IF) || parser_check(p, TOKEN_LOOP) ||
+            parser_check(p, TOKEN_COUNT) || parser_check(p, TOKEN_WHILE) ||
+            parser_check(p, TOKEN_TRY) || parser_check(p, TOKEN_PLS) ||
+            parser_check(p, TOKEN_MATCH) || parser_check(p, TOKEN_CLASS) ||
+            parser_check(p, TOKEN_FN) || parser_check(p, TOKEN_LAMBDA) ||
+            parser_check(p, TOKEN_GIVE) || parser_check(p, TOKEN_SAY) ||
+            parser_check(p, TOKEN_BREAK) || parser_check(p, TOKEN_CONTINUE) ||
+            parser_check(p, TOKEN_RAISE) || parser_check(p, TOKEN_ASSERT) ||
+            parser_check(p, TOKEN_START) || parser_check(p, TOKEN_TASK)) {
+            AstNode *body = parse_block(p);
+            parser_expect(p, TOKEN_END, "expected 'end' after lambda body");
+            return node_lambda(params, pc, body, line);
+        }
+        // expression body — parse single expression, consume period
+        AstNode *body_expr = parse_expression(p);
+        parser_match(p, TOKEN_DOT);
+        return node_lambda(params, pc, body_expr, line);
     }
     if (parser_check(p, TOKEN_NEW)) {
         int line = p->current.line;
@@ -382,7 +400,7 @@ static AstNode *parse_postfix(Parser *p) {
             parser_advance(p);
             char *field = parser_expect(p, TOKEN_IDENTIFIER, "expected name after 's");
             if (p->had_error) return expr;
-            if (parser_check(p, TOKEN_WITH)) {
+            if (parser_check(p, TOKEN_WITH) || parser_check(p, TOKEN_LPAREN)) {
                 NodeList args = parse_call_args(p);
                 expr = node_method_call(expr, field, args, line);
             } else {
@@ -390,6 +408,30 @@ static AstNode *parse_postfix(Parser *p) {
             }
             free(field);
             continue;
+        }
+        if (parser_check(p, TOKEN_DOT)) {
+            // save state in case this is just a statement terminator
+            Lexer saved = p->lexer;
+            Token saved_tok = p->current;
+            int line = p->current.line;
+            parser_advance(p);
+            if (parser_check(p, TOKEN_IDENTIFIER)) {
+                // dot followed by identifier — property access
+                char *field = copy_token(p);
+                parser_advance(p);
+                if (parser_check(p, TOKEN_LPAREN)) {
+                    NodeList args = parse_call_args(p);
+                    expr = node_method_call(expr, field, args, line);
+                } else {
+                    expr = node_possessive(expr, field, line);
+                }
+                free(field);
+                continue;
+            }
+            // not property access — restore lexer to before the dot
+            p->lexer = saved;
+            p->current = saved_tok;
+            break;
         }
         if (parser_check(p, TOKEN_LBRACKET)) {
             int line = p->current.line;

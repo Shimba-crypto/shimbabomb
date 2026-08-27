@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <dirent.h>
 #include <fcntl.h>
 #ifndef _WIN32
@@ -834,8 +835,8 @@ static int handle_pack(int argc, char **argv) {
     const char *fmt = argv[2];
     const char *dir = ".";
     if (argc >= 4) dir = argv[3];
-    if (!fmt || (strcmp(fmt,"deb")!=0 && strcmp(fmt,"rpm")!=0)) {
-        fprintf(stderr, "Usage: sb pack deb [project-dir]\n       sb pack rpm [project-dir]\n");
+    if (!fmt || (strcmp(fmt,"deb")!=0 && strcmp(fmt,"rpm")!=0 && strcmp(fmt,"msi")!=0)) {
+        fprintf(stderr, "Usage: sb pack deb [project-dir]\n       sb pack rpm [project-dir]\n       sb pack msi [project-dir]\n");
         return 1;
     }
 
@@ -1060,6 +1061,20 @@ static int handle_pack(int argc, char **argv) {
     fprintf(stderr, "sb pack rpm: only supported on Linux\n");
     return 1;
 #endif
+}
+
+static int handle_pack_msi(int argc, char **argv) {
+    (void)argc;
+    const char *src = argv[3] ? argv[3] : ".";
+    char name[256]="", version[64]="", desc[512]="", maint[256]="";
+    pack_read_manifest(src, name, sizeof(name), version, sizeof(version), desc, sizeof(desc), maint, sizeof(maint));
+    if (name[0]=='\0') { fprintf(stderr, "sb pack msi: no [project] name in %s/shimba.toml\n", src); return 1; }
+    if (version[0]=='\0') snprintf(version, sizeof(version), "1.0.0");
+    fprintf(stderr, "sb pack msi: WiX-based MSI packaging\n");
+    fprintf(stderr, "  This generates a Windows MSI installer using the WiX toolset.\n");
+    fprintf(stderr, "  Requires: wix (https://wixtoolset.org/) on Windows or cross-compile.\n");
+    fprintf(stderr, "  For now, use 'sb pack exe' + Inno Setup for Windows installers.\n");
+    return 1;
 }
 
 static int handle_pack_exe(int argc, char **argv) {
@@ -1413,6 +1428,7 @@ int main(int argc, char **argv) {
     }
     if (argc >= 2 && strcmp(argv[1], "pack") == 0) {
         if (argc >= 3 && strcmp(argv[2], "exe") == 0) return handle_pack_exe(argc-1, argv+1);
+        if (argc >= 3 && strcmp(argv[2], "msi") == 0) return handle_pack_msi(argc-1, argv+1);
         return handle_pack(argc, argv);
     }
     if (argc >= 2 && strcmp(argv[1], "packexe") == 0) {
@@ -1456,10 +1472,12 @@ int main(int argc, char **argv) {
     int interactive = 0;
     int debug_mode = 0;
     int noconsole = 0;
+    int watch_mode = 0;
     const char *path = NULL;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-i") == 0) interactive = 1;
         else if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) debug_mode = 1;
+        else if (strcmp(argv[i], "--watch") == 0) watch_mode = 1;
         else if (strcmp(argv[i], "--noconsole")==0 || strcmp(argv[i], "--no-console")==0 ||
                  strcmp(argv[i], "--nocon")==0 || strcmp(argv[i], "--nocil")==0 ||
                  strcmp(argv[i], "--window")==0 || strcmp(argv[i], "-w")==0) noconsole = 1;
@@ -1467,6 +1485,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--help")==0) { print_help(); return 0; }
     }
     // --noconsole: fork to background, detach console, window stays (Ketiwe / any GUI)
+    // --debug works with --noconsole: child keeps debugger, parent detaches
 #ifndef _WIN32
     if (noconsole && path) {
         pid_t pid = fork();
@@ -1476,13 +1495,10 @@ int main(int argc, char **argv) {
             return 0;
         }
         setsid();
-        // detach stdio so terminal returns immediately; X11 display stays open
         int fd = open("/dev/null", O_RDWR);
         if (fd >= 0) {
             dup2(fd, STDIN_FILENO);
-            // keep stdout/stderr for GUI errors on Linux; comment out next two lines if you want full silence:
-            // dup2(fd, STDOUT_FILENO);
-            // dup2(fd, STDERR_FILENO);
+            // keep stdout/stderr for debugger output and GUI errors
             if (fd > 2) close(fd);
         }
     }
@@ -1519,6 +1535,52 @@ int main(int argc, char **argv) {
 
     if (!path) {
         repl_with(&interp);
+        interp_free(&interp);
+        return 0;
+    }
+
+    // --watch: loop, re-run on file change
+    if (watch_mode) {
+        char *source = NULL;
+        AstNode *program = NULL;
+        time_t last_mod = 0;
+        struct stat st;
+        int running = 1;
+        while (running) {
+            if (stat(path, &st) == 0 && st.st_mtime != last_mod) {
+                last_mod = st.st_mtime;
+                if (source) { free(source); }
+                if (program) { node_free(program); }
+                source = read_file(path);
+                Parser parser;
+                parser_init(&parser, source);
+                program = parser_parse(&parser);
+                if (parser.had_error) {
+                    fprintf(stderr, "sb: parse error in %s: %s\n", path, parser.error_msg);
+                    free(source); source = NULL; program = NULL;
+                    sleep(1); continue;
+                }
+                printf("[watch] running %s\n", path);
+                Value result = interp_run(&interp, program);
+                if (interp.had_error) {
+                    fprintf(stderr, "error (sb line %d): %s\n", interp.error_line, interp.error_msg);
+                }
+                val_free(&result);
+                interp_free(&interp);
+                interp_init(&interp);
+                if (path) snprintf(interp.main_path, sizeof(interp.main_path), "%s", path);
+                interp_add_search_path(&interp, base_dir);
+                char mod_dir2[1024]; snprintf(mod_dir2, sizeof(mod_dir2), "%s/sb_modules", base_dir);
+                interp_add_search_path(&interp, mod_dir2);
+                interp_add_search_path(&interp, ".");
+                interp_add_search_path(&interp, "./sb_modules");
+                interp_add_search_path(&interp, "./std");
+                interp_add_search_path(&interp, SB_STD_DIR);
+            }
+            sleep(1);
+        }
+        if (source) free(source);
+        if (program) node_free(program);
         interp_free(&interp);
         return 0;
     }

@@ -202,6 +202,23 @@ static Value env_get(Environment *env, const char *name) {
     for (int i = 0; i < env->count; i++)
         if (strcmp(env->bindings[i].name, name) == 0)
             return env->bindings[i].value;
+    // dotted name: try map.field lookup (e.g. m.sin → env has map "m" with key "sin")
+    const char *dot = strchr(name, '.');
+    if (dot && dot[1] != '\0') {
+        size_t prefix_len = (size_t)(dot - name);
+        char prefix[256];
+        if (prefix_len < sizeof(prefix)) {
+            memcpy(prefix, name, prefix_len);
+            prefix[prefix_len] = '\0';
+            Value obj = env_get(env, prefix);
+            if (obj.type == VAL_MAP) {
+                const char *key = dot + 1;
+                for (int i = 0; i < obj.as.map.count; i++)
+                    if (strcmp(obj.as.map.entries[i].key, key) == 0)
+                        return *obj.as.map.entries[i].value;
+            }
+        }
+    }
     if (env->parent) return env_get(env->parent, name);
     return val_nil();
 }
@@ -429,7 +446,7 @@ static void run_import(Interpreter *interp, AstNode *node) {
                 env_set(interp->global, qname, val_copy(child->bindings[i].value));
             }
             env_set(interp->global, node->as.import.alias, m_map);
-            env_free(child);
+            // keep child alive — functions close over it (don't free)
         } else {
             interp_eval(interp, interp->global, program);
         }
@@ -484,13 +501,20 @@ static void run_import(Interpreter *interp, AstNode *node) {
         return;
     }
 
-    interp_eval(interp, interp->global, program);
-    // alias for file-based imports
     if (node->as.import.alias) {
-        // module already ran into global; we can't un-run it, but we create alias map
-        // by scanning global for newly added names matching module exports
-        // For simplicity: the module's functions are already global, alias is a no-op hint
-        // Users should use "set m to maths." pattern for full control
+        Environment *child = env_create(interp->global);
+        interp_eval(interp, child, program);
+        Value m_map = val_map();
+        for (int i = 0; i < child->count; i++) {
+            val_map_set(&m_map, child->bindings[i].name, val_copy(child->bindings[i].value));
+            char qname[512];
+            snprintf(qname, sizeof(qname), "%s.%s", node->as.import.alias, child->bindings[i].name);
+            env_set(interp->global, qname, val_copy(child->bindings[i].value));
+        }
+        env_set(interp->global, node->as.import.alias, m_map);
+        // keep child alive — functions close over it
+    } else {
+        interp_eval(interp, interp->global, program);
     }
     // keep AST alive — classes/functions point into it
     free(source);
@@ -941,16 +965,60 @@ static Value native_ketiwe_flip(int argc, Value *args) {
 static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_x()); }
 static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_y()); }
 static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_down()); }
+
+static Value native_ketiwe_circle(int argc, Value *args) {
+    if (argc < 4) return val_error("ketiwe_circle needs 4 args: cx, cy, r, color");
+    int cx = (int)args[0].as.number;
+    int cy = (int)args[1].as.number;
+    int r = (int)args[2].as.number;
+    unsigned color = 0;
+    if (args[3].type == VAL_NUMBER) color = (unsigned)args[3].as.number;
+    else if (args[3].type == VAL_STRING) {
+        const char *s = args[3].as.string;
+        if (s[0] == '#') s++;
+        color = (unsigned)strtol(s, NULL, 16);
+    }
+    ketiwe_circle(cx, cy, r, color);
+    return val_nil();
+}
+
+static Value native_ketiwe_input(int argc, Value *args) {
+    if (argc < 1) return val_error("ketiwe_input needs at least 1 arg: placeholder");
+    const char *ph = (args[0].type == VAL_STRING) ? args[0].as.string : "";
+    int x = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
+    int y = (argc > 2 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
+    int w = (argc > 3 && args[3].type == VAL_NUMBER) ? (int)args[3].as.number : 200;
+    int h = (argc > 4 && args[4].type == VAL_NUMBER) ? (int)args[4].as.number : 30;
+    static char input_static[8][256];
+    static int input_idx = 0;
+    int idx = input_idx % 8;
+    input_idx++;
+    memset(input_static[idx], 0, 256);
+    ketiwe_input(x, y, w, h, input_static[idx], 256, ph);
+    return val_string(input_static[idx]);
+}
+
+static Value native_ketiwe_key_press(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_key_press()); }
+
+static Value native_ketiwe_input_text(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_string("");
+    return val_string(ketiwe_input_text((int)args[0].as.number));
+}
+
 #else
 static Value native_ketiwe_window(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
 static Value native_ketiwe_rect(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_circle(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
 static Value native_ketiwe_text(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
 static Value native_ketiwe_button(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_input(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
 static Value native_ketiwe_poll(int argc, Value *args) { (void)argc;(void)args; return val_number(1); }
 static Value native_ketiwe_flip(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
 static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
 static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
 static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(0); }
+static Value native_ketiwe_key_press(int argc, Value *args) { (void)argc;(void)args; return val_number(0); }
+static Value native_ketiwe_input_text(int argc, Value *args) { (void)argc;(void)args; return val_string(""); }
 #endif
 
 static Value native_type_of(int argc, Value *args) {
@@ -1613,48 +1681,86 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
             if (node->as.func_call.receiver) {
                 Value obj = interp_eval(interp, env, node->as.func_call.receiver);
                 if (interp->had_error) return val_nil();
-                if (obj.type != VAL_INSTANCE) {
-                    interp_error(interp, node->line, "can only call methods on objects");
+
+                if (obj.type == VAL_MAP) {
+                    // map.method(args) — lookup function in map, call it
+                    const char *method = node->as.func_call.name;
+                    Value fn = val_nil();
+                    for (int i = 0; i < obj.as.map.count; i++)
+                        if (strcmp(obj.as.map.entries[i].key, method) == 0)
+                            fn = *obj.as.map.entries[i].value;
+                    if (fn.type != VAL_FUNCTION && fn.type != VAL_NATIVE) {
+                        char msg[256]; snprintf(msg, sizeof(msg), "'%s' has no method '%s'", method, method);
+                        interp_error(interp, node->line, msg); return val_nil();
+                    }
+                    int argc = node->as.func_call.args.count;
+                    Value *args = malloc(sizeof(Value) * (argc > 0 ? argc : 1));
+                    for (int i = 0; i < argc; i++) {
+                        args[i] = interp_eval(interp, env, node->as.func_call.args.items[i]);
+                        if (interp->had_error) { free(args); return val_nil(); }
+                    }
+                    Value result;
+                    if (fn.type == VAL_NATIVE) {
+                        result = fn.as.native.fn(argc, args);
+                    } else {
+                        Environment *fn_env = env_create(fn.as.function.closure);
+                        for (int i = 0; i < fn.as.function.param_count && i < argc; i++)
+                            env_set(fn_env, fn.as.function.params[i], val_copy(args[i]));
+                        result = interp_block(interp, fn_env, fn.as.function.body);
+                        env_free(fn_env);
+                        if (interp->returning) {
+                            interp->returning = 0;
+                            result = val_copy(interp->return_value);
+                            val_free(&interp->return_value);
+                            interp->return_value = val_nil();
+                        }
+                    }
+                    free(args);
+                    return result;
+
+                } else if (obj.type == VAL_INSTANCE) {
+                    Method *met = NULL;
+                    for (int i = 0; i < obj.as.instance.class_def->method_count; i++)
+                        if (strcmp(obj.as.instance.class_def->methods[i].name, node->as.func_call.name)==0)
+                            { met = &obj.as.instance.class_def->methods[i]; break; }
+                    if (!met) {
+                        char msg[256]; snprintf(msg, sizeof(msg), "object has no method '%s'", node->as.func_call.name);
+                        interp_error(interp, node->line, msg); return val_nil();
+                    }
+                    int argc = node->as.func_call.args.count;
+                    Value *args = malloc(sizeof(Value) * (argc > 0 ? argc : 1));
+                    for (int i = 0; i < argc; i++) {
+                        args[i] = interp_eval(interp, env, node->as.func_call.args.items[i]);
+                        if (interp->had_error) { free(args); return val_nil(); }
+                    }
+                    Environment *fn_env = env_create(met->closure);
+                    int _depth_m = 0;
+                    if (interp->call_depth < SB_MAX_CALLS) {
+                        snprintf(interp->call_stack[interp->call_depth], 64, "%s", node->as.func_call.name);
+                        interp->call_lines[interp->call_depth] = node->line;
+                        interp->call_depth++;
+                        _depth_m = 1;
+                    }
+                    env_set(fn_env, "self", val_copy(obj));
+                    for (int i=0; i<met->param_count && i<argc; i++)
+                        env_set(fn_env, met->params[i], val_copy(args[i]));
+                    Value result = interp_block(interp, fn_env, met->body);
+                    if (_depth_m) interp->call_depth--;
+                    env_free(fn_env);
+                    free(args);
+                    if (interp->returning) {
+                        interp->returning = 0;
+                        result = val_copy(interp->return_value);
+                        val_free(&interp->return_value);
+                        interp->return_value = val_nil();
+                    } else {
+                        result = val_nil();
+                    }
+                    return result;
+                } else {
+                    interp_error(interp, node->line, "can only call methods on objects or maps");
                     return val_nil();
                 }
-                Method *met = NULL;
-                for (int i = 0; i < obj.as.instance.class_def->method_count; i++)
-                    if (strcmp(obj.as.instance.class_def->methods[i].name, node->as.func_call.name)==0)
-                        { met = &obj.as.instance.class_def->methods[i]; break; }
-                if (!met) {
-                    char msg[256]; snprintf(msg, sizeof(msg), "object has no method '%s'", node->as.func_call.name);
-                    interp_error(interp, node->line, msg); return val_nil();
-                }
-                int argc = node->as.func_call.args.count;
-                Value *args = malloc(sizeof(Value) * (argc > 0 ? argc : 1));
-                for (int i = 0; i < argc; i++) {
-                    args[i] = interp_eval(interp, env, node->as.func_call.args.items[i]);
-                    if (interp->had_error) { free(args); return val_nil(); }
-                }
-                Environment *fn_env = env_create(met->closure);
-                int _depth_m = 0;
-                if (interp->call_depth < SB_MAX_CALLS) {
-                    snprintf(interp->call_stack[interp->call_depth], 64, "%s", node->as.func_call.name);
-                    interp->call_lines[interp->call_depth] = node->line;
-                    interp->call_depth++;
-                    _depth_m = 1;
-                }
-                env_set(fn_env, "self", val_copy(obj));
-                for (int i=0; i<met->param_count && i<argc; i++)
-                    env_set(fn_env, met->params[i], val_copy(args[i]));
-                Value result = interp_block(interp, fn_env, met->body);
-                if (_depth_m) interp->call_depth--;
-                env_free(fn_env);
-                free(args);
-                if (interp->returning) {
-                    interp->returning = 0;
-                    result = val_copy(interp->return_value);
-                    val_free(&interp->return_value);
-                    interp->return_value = val_nil();
-                } else {
-                    result = val_nil();
-                }
-                return result;
             }
 
             Value callee = env_get(env, node->as.func_call.name);
@@ -2042,6 +2148,10 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "ketiwe_mouse_x",    val_native(native_ketiwe_mouse_x,    "ketiwe_mouse_x"));
     env_set(interp->global, "ketiwe_mouse_y",    val_native(native_ketiwe_mouse_y,    "ketiwe_mouse_y"));
     env_set(interp->global, "ketiwe_mouse_down", val_native(native_ketiwe_mouse_down, "ketiwe_mouse_down"));
+    env_set(interp->global, "ketiwe_circle",     val_native(native_ketiwe_circle,     "ketiwe_circle"));
+    env_set(interp->global, "ketiwe_input",      val_native(native_ketiwe_input,      "ketiwe_input"));
+    env_set(interp->global, "ketiwe_key_press",  val_native(native_ketiwe_key_press,  "ketiwe_key_press"));
+    env_set(interp->global, "ketiwe_input_text", val_native(native_ketiwe_input_text, "ketiwe_input_text"));
     env_set(interp->global, "read_file",  val_native(native_read_file,  "read_file"));
     env_set(interp->global, "write_file", val_native(native_write_file, "write_file"));
     env_set(interp->global, "append_file",val_native(native_append_file,"append_file"));
