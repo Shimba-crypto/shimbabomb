@@ -7,3 +7,5 @@ Output/
 *.exe
 .env
 .DS_Store
+always.txt
+instruct.txt
