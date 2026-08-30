@@ -87,9 +87,9 @@ while close is 0 then
     set out to "["
     set last_idx to length(elements) - 1
     count i from 0 to last_idx then
-      set el to item(elements, i)
+      set el to item(i, elements)
       set out to out + to_json(el)
-      if i < last_idx then
+      if i is less than last_idx then
         set out to out + ","
       end
     end
@@ -104,7 +104,7 @@ while close is 0 then
 
   ## draw elements
   count idx from 0 to length(elements) - 1 then
-    set el to item(elements, idx)
+    set el to item(idx, elements)
     set ex to el["x"]
     set ey to el["y"]
     set ew to el["w"]
@@ -137,7 +137,7 @@ while close is 0 then
   set md to ketiwe_mouse_down()
 
   if md is 1 then
-    if my > 115 then
+    if my is greater than 115 then
       if placing is "rect" then
         set ne to map()
         set ne["type"] to "rect"
@@ -177,12 +177,12 @@ while close is 0 then
       if placing is "none" then
         ## try to pick element to drag
         count j from 0 to length(elements) - 1 then
-          set jel to item(elements, j)
+          set jel to item(j, elements)
           set jx to jel["x"]
           set jy to jel["y"]
           set jw to jel["w"]
           set jh to jel["h"]
-          if mx >= jx and mx < jx + jw and my >= jy and my < jy + jh then
+          if not (mx is less than jx) and mx is less than jx + jw and not (my is less than jy) and my is less than jy + jh then
             set dragging to j
             set offset_x to mx - jx
             set offset_y to my - jy
@@ -192,12 +192,12 @@ while close is 0 then
     end
   end
 
-  if md is 0 and dragging >= 0 then
+  if md is 0 and not (dragging is less than 0) then
     set dragging to -1
   end
 
-  if dragging >= 0 and md is 1 then
-    set del to item(elements, dragging)
+  if not (dragging is less than 0) and md is 1 then
+    set del to item(dragging, elements)
     set del["x"] to mx - offset_x
     set del["y"] to my - offset_y
   end

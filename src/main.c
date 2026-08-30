@@ -168,17 +168,17 @@ static int build_to(const char *src_path, const char *out_path) {
     char c_path[1024]; snprintf(c_path, sizeof(c_path), "/tmp/sb_build_%d.c", getpid());
     generate_c(src_path, c_path);
     char cflags[4096]="", libs[4096]="";
-    FILE *pp = popen("pkg-config --cflags gtk+-3.0 webkit2gtk-4.1 libcurl 2>/dev/null | tr '\n' ' '", "r");
+    FILE *pp = popen("pkg-config --cflags gtk+-3.0 webkit2gtk-4.1 libcurl x11 2>/dev/null | tr '\n' ' '", "r");
     if (pp) { fread(cflags,1,sizeof(cflags)-1,pp); pclose(pp); cflags[strcspn(cflags,"\r\n")]='\0'; }
-    pp = popen("pkg-config --libs gtk+-3.0 webkit2gtk-4.1 libcurl 2>/dev/null | tr '\n' ' '; echo -n ' -lreadline -lm'", "r");
+    pp = popen("pkg-config --libs gtk+-3.0 webkit2gtk-4.1 libcurl x11 2>/dev/null | tr '\n' ' '; echo -n ' -lreadline -lm'", "r");
     if (pp) { fread(libs,1,sizeof(libs)-1,pp); pclose(pp); libs[strcspn(libs,"\r\n")]='\0'; }
     for (char *q=cflags;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
     for (char *q=libs;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
     char simple[4096];
     snprintf(simple, sizeof(simple),
-        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c %s 2>&1",
+        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c %s/src/ketiwe.c %s 2>&1",
         SB_SRC_DIR, cflags, out_path, c_path,
-        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
+        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
         libs);
     int rc = system(simple);
     unlink(c_path);

@@ -16,15 +16,18 @@ WEBKIT_CFLAGS=$(pkg-config --cflags webkit2gtk-4.1 2>/dev/null || pkg-config --c
 WEBKIT_LIBS=$(pkg-config --libs webkit2gtk-4.1 2>/dev/null || pkg-config --libs webkit2gtk-4.0 2>/dev/null || echo "")
 CURL_CFLAGS=$(pkg-config --cflags libcurl 2>/dev/null || echo "")
 CURL_LIBS=$(pkg-config --libs libcurl 2>/dev/null || echo "-lcurl")
+X11_CFLAGS=$(pkg-config --cflags x11 2>/dev/null || echo "")
+X11_LIBS=$(pkg-config --libs x11 2>/dev/null || echo "-lX11")
 READLINE_LIBS="-lreadline"
-gcc -std=c11 -Wall -Wextra $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS -DSB_STD_DIR="\"$DIR/std\"" -DSB_SRC_DIR="\"$DIR\"" -o "$BUILD/sb" \
+gcc -std=c11 -Wall -Wextra $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS $X11_CFLAGS -DSB_STD_DIR="\"$DIR/std\"" -DSB_SRC_DIR="\"$DIR\"" -o "$BUILD/sb" \
     "$SRC/lexer.c" \
     "$SRC/ast.c" \
     "$SRC/value.c" \
     "$SRC/parser.c" \
     "$SRC/interpreter.c" \
     "$SRC/main.c" \
-    $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $READLINE_LIBS -lm
+    "$SRC/ketiwe.c" \
+    $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $X11_LIBS $READLINE_LIBS -lm
 
 echo "Done. Binary at $BUILD/sb"
 
