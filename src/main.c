@@ -159,7 +159,7 @@ static void generate_c(const char *src_path, const char *c_path) {
     fprintf(f, "Parser p; parser_init(&p,src);\n");
     fprintf(f, "AstNode *prog=parser_parse(&p);\n");
     fprintf(f, "if(p.had_error){fprintf(stderr,\"compile error: %%s\\n\",p.error_msg); return 1;}\n");
-    fprintf(f, "interp_run(&ip,prog); if(ip.had_error) fprintf(stderr,\"runtime: %%s\\n\",ip.error_msg);\n");
+    fprintf(f, "interp_run(&ip,prog); if(ip.had_error){fprintf(stderr,\"runtime: %%s\\n\",ip.error_msg); return 1;}\n");
     fprintf(f, "return 0;}\n");
     fclose(f); free(src); free(esc);
 }
@@ -168,17 +168,17 @@ static int build_to(const char *src_path, const char *out_path) {
     char c_path[1024]; snprintf(c_path, sizeof(c_path), "/tmp/sb_build_%d.c", getpid());
     generate_c(src_path, c_path);
     char cflags[4096]="", libs[4096]="";
-    FILE *pp = popen("pkg-config --cflags gtk+-3.0 webkit2gtk-4.1 libcurl 2>/dev/null | tr '\n' ' '", "r");
+    FILE *pp = popen("pkg-config --cflags gtk+-3.0 webkit2gtk-4.1 libcurl x11 2>/dev/null | tr '\n' ' '", "r");
     if (pp) { fread(cflags,1,sizeof(cflags)-1,pp); pclose(pp); cflags[strcspn(cflags,"\r\n")]='\0'; }
-    pp = popen("pkg-config --libs gtk+-3.0 webkit2gtk-4.1 libcurl 2>/dev/null | tr '\n' ' '; echo -n ' -lreadline -lm'", "r");
+    pp = popen("pkg-config --libs gtk+-3.0 webkit2gtk-4.1 libcurl x11 2>/dev/null | tr '\n' ' '; echo -n ' -lreadline -lm'", "r");
     if (pp) { fread(libs,1,sizeof(libs)-1,pp); pclose(pp); libs[strcspn(libs,"\r\n")]='\0'; }
     for (char *q=cflags;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
     for (char *q=libs;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
     char simple[4096];
     snprintf(simple, sizeof(simple),
-        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c %s 2>&1",
+        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c %s/src/ketiwe.c %s 2>&1",
         SB_SRC_DIR, cflags, out_path, c_path,
-        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
+        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
         libs);
     int rc = system(simple);
     unlink(c_path);
@@ -1598,6 +1598,7 @@ int main(int argc, char **argv) {
 
     Value result = interp_run(&interp, program);
     int test_failed = interp.asserts_failed > 0;
+    int run_failed = interp.had_error;
     if (interp.had_error) {
         fprintf(stderr, "error (sb line %d): %s\n", interp.error_line, interp.error_msg);
         if (interp.error_trace[0]) fprintf(stderr, "%s\n", interp.error_trace);
@@ -1611,5 +1612,5 @@ int main(int argc, char **argv) {
         repl_with(&interp);
     }
     interp_free(&interp);
-    return test_failed ? 1 : 0;
+    return (test_failed || run_failed) ? 1 : 0;
 }

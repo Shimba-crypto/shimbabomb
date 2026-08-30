@@ -4,21 +4,19 @@ say "ShimbaBomb Mini Browser".
 say "Type a URL and it will fetch and show in a window.".
 say "Type exit to quit.".
 
-define browse as
+set running to 1.
+while running is equal to 1 then
     set url to input with "url> ".
-    if url is equal to "exit" then
+    if type_of(url) is equal to "nothing" or url is equal to "exit" then
         say "bye!".
-        give back 0.
+        set running to 0.
+    otherwise
+        if url is not equal to "" then
+            if contains with url and "://" is equal to false then
+                set url to "https://" plus url.
+            end
+            say "opening " plus url plus "...".
+            window with url.
+        end
     end
-    if url is equal to "" then
-        browse with.
-    end
-    if contains with url and "://" is equal to false then
-        set url to "https://" plus url.
-    end
-    say "opening " plus url plus "...".
-    window with url.
-    browse with.
 end
-
-browse with.

@@ -170,8 +170,22 @@ Token lexer_next_token(Lexer *lexer) {
             if (is_alpha(peek(lexer))) {
                 int nws = lexer->current;
                 while (is_alnum(peek(lexer))) advance(lexer);
-                if (lexer->current-nws==3 && !memcmp(lexer->source+nws, "not", 3))
+                if (lexer->current-nws==3 && !memcmp(lexer->source+nws, "not", 3)) {
+                    // optional "equal to" suffix: "is not equal to" == "is not"
+                    int after_not = lexer->current;
+                    while (peek(lexer) == ' ') advance(lexer);
+                    int we = lexer->current;
+                    while (is_alnum(peek(lexer))) advance(lexer);
+                    if (lexer->current-we==5 && !memcmp(lexer->source+we, "equal", 5)) {
+                        while (peek(lexer) == ' ') advance(lexer);
+                        int w2 = lexer->current;
+                        while (is_alnum(peek(lexer))) advance(lexer);
+                        if (lexer->current-w2==2 && !memcmp(lexer->source+w2, "to", 2))
+                            return make_token(lexer, TOKEN_NOTEQ);
+                    }
+                    lexer->current = after_not;
                     return make_token(lexer, TOKEN_NOTEQ);
+                }
                 lexer->current = tmp;
                 while (peek(lexer) == ' ') advance(lexer);
             }
@@ -212,6 +226,20 @@ Token lexer_next_token(Lexer *lexer) {
             } else {
                 lexer->current = tmp;
             }
+        }
+
+        // bare "less than" / "greater than" (without a leading "is")
+        if ((klen == 4 && !memcmp(ks, "less", 4)) ||
+            (klen == 7 && !memcmp(ks, "greater", 7))) {
+            int tmp = lexer->current;
+            while (peek(lexer) == ' ') advance(lexer);
+            if (is_alpha(peek(lexer))) {
+                int w2 = lexer->current;
+                while (is_alnum(peek(lexer))) advance(lexer);
+                if (lexer->current-w2==4 && !memcmp(lexer->source+w2, "than", 4))
+                    return make_token(lexer, klen == 4 ? TOKEN_LESS : TOKEN_GREATER);
+            }
+            lexer->current = tmp;
         }
 
         // "divided by" / "divided evenly by"

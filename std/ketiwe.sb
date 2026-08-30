@@ -19,11 +19,11 @@ define grid_y with row, cell_h, padding as
 end
 
 define pad with x, y, px, py as
-  give back { "x": x + px, "y": y + py }.
+  give back map with "x" and x + px and "y" and y + py.
 end
 
 define pad_rect with x, y, w, h, px, py, pr, pb as
-  give back { "x": x + px, "y": y + py, "w": w - px - pr, "h": h - py - pb }.
+  give back map with "x" and x + px and "y" and y + py and "w" and w - px - pr and "h" and h - py - pb.
 end
 
 define fill_window with color as
@@ -31,19 +31,19 @@ define fill_window with color as
 end
 
 define draw_centered_text with text, win_w, win_h as
-  set tw to length of text * 8.
+  set tw to length(text) * 8.
   set tx to (win_w - tw) / 2.
   set ty to win_h / 2 + 5.
   ketiwe_text(tx, ty, text).
 end
 
 define draw_button_row with labels, x, y, w, h, gap as
-  set results to [].
+  set results to list with.
   set i to 0.
   set bx to x.
-  loop through labels
-    set btn to ketiwe_button(bx, y, w, h, labels[i]).
-    add results to btn.
+  loop label through labels then
+    set btn to ketiwe_button(bx, y, w, h, label).
+    add_to with results and btn.
     set bx to bx + w + gap.
     set i to i + 1.
   end

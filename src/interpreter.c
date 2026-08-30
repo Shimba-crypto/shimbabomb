@@ -1045,7 +1045,7 @@ static Value native_to_string(int argc, Value *args) {
 static Value native_input(int argc, Value *args) {
     if (argc > 0) val_print(&args[0]);
     char buf[4096];
-    if (!fgets(buf, sizeof(buf), stdin)) return val_string("");
+    if (!fgets(buf, sizeof(buf), stdin)) return val_nil();
     buf[strcspn(buf, "\r\n")] = '\0';
     return val_string(buf);
 }
@@ -1703,10 +1703,17 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                     if (fn.type == VAL_NATIVE) {
                         result = fn.as.native.fn(argc, args);
                     } else {
+                        if (interp->recursion_depth >= SB_MAX_RECURSION) {
+                            char msg[256]; snprintf(msg, sizeof(msg), "too much recursion in '%s'", method);
+                            interp_error(interp, node->line, msg);
+                            free(args); return val_nil();
+                        }
                         Environment *fn_env = env_create(fn.as.function.closure);
+                        interp->recursion_depth++;
                         for (int i = 0; i < fn.as.function.param_count && i < argc; i++)
                             env_set(fn_env, fn.as.function.params[i], val_copy(args[i]));
                         result = interp_block(interp, fn_env, fn.as.function.body);
+                        interp->recursion_depth--;
                         env_free(fn_env);
                         if (interp->returning) {
                             interp->returning = 0;
@@ -1733,7 +1740,13 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                         args[i] = interp_eval(interp, env, node->as.func_call.args.items[i]);
                         if (interp->had_error) { free(args); return val_nil(); }
                     }
+                    if (interp->recursion_depth >= SB_MAX_RECURSION) {
+                        char msg[256]; snprintf(msg, sizeof(msg), "too much recursion in '%s'", node->as.func_call.name);
+                        interp_error(interp, node->line, msg);
+                        free(args); return val_nil();
+                    }
                     Environment *fn_env = env_create(met->closure);
+                    interp->recursion_depth++;
                     int _depth_m = 0;
                     if (interp->call_depth < SB_MAX_CALLS) {
                         snprintf(interp->call_stack[interp->call_depth], 64, "%s", node->as.func_call.name);
@@ -1745,6 +1758,7 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                     for (int i=0; i<met->param_count && i<argc; i++)
                         env_set(fn_env, met->params[i], val_copy(args[i]));
                     Value result = interp_block(interp, fn_env, met->body);
+                    interp->recursion_depth--;
                     if (_depth_m) interp->call_depth--;
                     env_free(fn_env);
                     free(args);
@@ -1807,7 +1821,13 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
             if (callee.type==VAL_NATIVE) {
                 result = callee.as.native.fn(argc, args);
             } else {
+                if (interp->recursion_depth >= SB_MAX_RECURSION) {
+                    char msg[256]; snprintf(msg, sizeof(msg), "too much recursion in '%s'", node->as.func_call.name);
+                    interp_error(interp, node->line, msg);
+                    free(args); return val_nil();
+                }
                 Environment *fn_env = env_create(callee.as.function.closure);
+                interp->recursion_depth++;
                 int _depth_f = 0;
                 if (interp->call_depth < SB_MAX_CALLS) {
                     snprintf(interp->call_stack[interp->call_depth], 64, "%s", node->as.func_call.name);
@@ -1818,6 +1838,7 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                 for (int i=0;i<callee.as.function.param_count && i<argc; i++)
                     env_set(fn_env, callee.as.function.params[i], val_copy(args[i]));
                 result = interp_block(interp, fn_env, callee.as.function.body);
+                interp->recursion_depth--;
                 if (_depth_f) interp->call_depth--;
                 env_free(fn_env);
                 if (interp->returning) {
@@ -1848,9 +1869,15 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
             for (int i=0;i<obj.as.instance.class_def->method_count;i++)
                 if (strcmp(obj.as.instance.class_def->methods[i].name, node->as.possessive.field)==0) {
                     Method *met = &obj.as.instance.class_def->methods[i];
+                    if (interp->recursion_depth >= SB_MAX_RECURSION) {
+                        interp_error(interp, node->line, "too much recursion");
+                        return val_nil();
+                    }
                     Environment *fn_env = env_create(met->closure);
+                    interp->recursion_depth++;
                     env_set(fn_env, "self", val_copy(obj));
                     Value result = interp_block(interp, fn_env, met->body);
+                    interp->recursion_depth--;
                     env_free(fn_env);
                     if (interp->returning) {
                         interp->returning=0;

@@ -45,10 +45,11 @@ fi
 
 BIN_DIR="$PREFIX/bin"
 DATA_DIR="$PREFIX/share/shimbabomb"
+VER=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "v1.10.0")
 
 if [ "$UNINSTALL" = "1" ]; then
     echo "Removing $BIN_DIR/sb and $DATA_DIR ..."
-    rm -f "$BIN_DIR/sb"
+    rm -f "$BIN_DIR/sb" "$BIN_DIR"/sb.v*
     rm -rf "$DATA_DIR"
     echo "Done. (libraries in ~/.shimbabomb were left alone)"
     exit 0
@@ -156,7 +157,7 @@ if command -v ldd >/dev/null 2>&1 && [ -f "$BIN_DIR/sb" ]; then
         mv "$BIN_DIR/sb" "$BIN_DIR/sb.${VER}"
         cat > "$BIN_DIR/sb" <<EOSBWRAP
 #!/bin/bash
-VENDOR="\$HOME/.local/share/shimbabomb/lib"
+VENDOR="$VENDOR_LIB"
 if [ -d "\$VENDOR" ]; then export LD_LIBRARY_PATH="\$VENDOR:\$LD_LIBRARY_PATH"; fi
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 exec -a sb "\$DIR/sb.${VER}" "\$@"
@@ -178,7 +179,6 @@ case ":$PATH:" in
         ;;
 esac
 
-VER=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "v1.10.0")
 echo ""
 echo "== ShimbaBomb $VER installed =="
 echo "   binary : $BIN_DIR/sb"

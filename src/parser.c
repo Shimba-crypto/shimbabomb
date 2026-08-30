@@ -68,7 +68,7 @@ static int parse_params(Parser *p, char ***out) {
         }
         params[count++] = copy_token(p);
         parser_advance(p);
-        if (!parser_match(p, TOKEN_AND)) break;
+        if (!parser_match(p, TOKEN_AND) && !parser_match(p, TOKEN_COMMA)) break;
     }
     *out = params;
     return count;
@@ -318,7 +318,7 @@ static AstNode *parse_arg_term(Parser *p) {
         int line = p->current.line;
         parser_advance(p);
         if (starts_call(p)) { parser_restore(p, &snap); break; }
-        AstNode *right = parse_arg_term(p);
+        AstNode *right = parse_postfix(p);
         left = node_binary(left, op, right, line);
     }
     return left;
@@ -334,7 +334,7 @@ static AstNode *parse_arg_expr(Parser *p) {
         int line = p->current.line;
         parser_advance(p);
         if (starts_call(p)) { parser_restore(p, &snap); break; }
-        AstNode *right = parse_arg_expr(p);
+        AstNode *right = parse_arg_term(p);
         left = node_binary(left, op, right, line);
     }
     return left;
@@ -413,9 +413,13 @@ static AstNode *parse_postfix(Parser *p) {
             // save state in case this is just a statement terminator
             Lexer saved = p->lexer;
             Token saved_tok = p->current;
+            Token saved_prev = p->previous;
+            // property access is written without spaces (a.b); a dot followed
+            // by whitespace terminates the statement
+            const char *after_dot = p->current.start + p->current.length;
             int line = p->current.line;
             parser_advance(p);
-            if (parser_check(p, TOKEN_IDENTIFIER)) {
+            if (parser_check(p, TOKEN_IDENTIFIER) && p->current.start == after_dot) {
                 // dot followed by identifier — property access
                 char *field = copy_token(p);
                 parser_advance(p);
@@ -431,6 +435,7 @@ static AstNode *parse_postfix(Parser *p) {
             // not property access — restore lexer to before the dot
             p->lexer = saved;
             p->current = saved_tok;
+            p->previous = saved_prev;
             break;
         }
         if (parser_check(p, TOKEN_LBRACKET)) {
