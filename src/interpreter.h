@@ -13,6 +13,7 @@
 #define SB_MAX_LOADED_MODULES 64
 #define SB_MAX_TASKS 64
 #define SB_MAX_CALLS 32
+#define SB_MAX_RECURSION 2000
 #define SB_MAX_EMBED 64
 
 typedef struct EnvBinding {
@@ -65,6 +66,7 @@ typedef struct {
     char call_stack[SB_MAX_CALLS][64];
     int call_lines[SB_MAX_CALLS];
     int call_depth;
+    int recursion_depth;
     char error_trace[1024];
 
     char *embed_names[SB_MAX_EMBED];

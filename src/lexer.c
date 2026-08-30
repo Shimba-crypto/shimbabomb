@@ -170,8 +170,22 @@ Token lexer_next_token(Lexer *lexer) {
             if (is_alpha(peek(lexer))) {
                 int nws = lexer->current;
                 while (is_alnum(peek(lexer))) advance(lexer);
-                if (lexer->current-nws==3 && !memcmp(lexer->source+nws, "not", 3))
+                if (lexer->current-nws==3 && !memcmp(lexer->source+nws, "not", 3)) {
+                    // optional "equal to" suffix: "is not equal to" == "is not"
+                    int after_not = lexer->current;
+                    while (peek(lexer) == ' ') advance(lexer);
+                    int we = lexer->current;
+                    while (is_alnum(peek(lexer))) advance(lexer);
+                    if (lexer->current-we==5 && !memcmp(lexer->source+we, "equal", 5)) {
+                        while (peek(lexer) == ' ') advance(lexer);
+                        int w2 = lexer->current;
+                        while (is_alnum(peek(lexer))) advance(lexer);
+                        if (lexer->current-w2==2 && !memcmp(lexer->source+w2, "to", 2))
+                            return make_token(lexer, TOKEN_NOTEQ);
+                    }
+                    lexer->current = after_not;
                     return make_token(lexer, TOKEN_NOTEQ);
+                }
                 lexer->current = tmp;
                 while (peek(lexer) == ' ') advance(lexer);
             }

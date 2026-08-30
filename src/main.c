@@ -159,7 +159,7 @@ static void generate_c(const char *src_path, const char *c_path) {
     fprintf(f, "Parser p; parser_init(&p,src);\n");
     fprintf(f, "AstNode *prog=parser_parse(&p);\n");
     fprintf(f, "if(p.had_error){fprintf(stderr,\"compile error: %%s\\n\",p.error_msg); return 1;}\n");
-    fprintf(f, "interp_run(&ip,prog); if(ip.had_error) fprintf(stderr,\"runtime: %%s\\n\",ip.error_msg);\n");
+    fprintf(f, "interp_run(&ip,prog); if(ip.had_error){fprintf(stderr,\"runtime: %%s\\n\",ip.error_msg); return 1;}\n");
     fprintf(f, "return 0;}\n");
     fclose(f); free(src); free(esc);
 }
@@ -1598,6 +1598,7 @@ int main(int argc, char **argv) {
 
     Value result = interp_run(&interp, program);
     int test_failed = interp.asserts_failed > 0;
+    int run_failed = interp.had_error;
     if (interp.had_error) {
         fprintf(stderr, "error (sb line %d): %s\n", interp.error_line, interp.error_msg);
         if (interp.error_trace[0]) fprintf(stderr, "%s\n", interp.error_trace);
@@ -1611,5 +1612,5 @@ int main(int argc, char **argv) {
         repl_with(&interp);
     }
     interp_free(&interp);
-    return test_failed ? 1 : 0;
+    return (test_failed || run_failed) ? 1 : 0;
 }
