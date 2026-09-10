@@ -201,8 +201,10 @@ hello, world!</pre>
 <pre><span class="k">SB</span>
 shimgui_window <span class="k">with</span> <span class="s">"My App"</span> <span class="k">and</span> 460 <span class="k">and</span> 320.
 shimgui_label   <span class="k">with</span> <span class="s">"Hello — real GTK, not HTML"</span>.
-shimgui_button  <span class="k">with</span> <span class="s">"Click me"</span>.
-shimgui_run <span class="k">with</span>.</pre>
+shimgui_entry   <span class="k">with</span> <span class="s">"Your name..."</span>.
+shimgui_button  <span class="k">with</span> <span class="s">"Greet"</span>.
+shimgui_run <span class="k">with</span>.
+<span class="k">say</span> shimgui_entry_text <span class="k">with</span> 0.</pre>
 </div>
 
 <h2><span class="num">3</span>errors you can actually read</h2>
@@ -215,6 +217,7 @@ shimgui_run <span class="k">with</span>.</pre>
     <span class="k">say</span> e.                    <span class="c"># the short note</span>
     <span class="k">say</span> e_info[<span class="s">"line"</span>].       <span class="c"># where it broke</span>
     <span class="k">say</span> e_info[<span class="s">"trace"</span>].      <span class="c"># how you got there</span>
+    <span class="k">say</span> err_name <span class="k">with</span> e_info[<span class="s">"code"</span>]. <span class="c"># stable name, not text</span>
 <span class="k">end</span></pre>
 </div>
 
@@ -248,7 +251,8 @@ winget install ShimbaBomb</pre>
   <li><b>shimgui</b> — real GTK windows, labels, buttons, inputs</li>
   <li><b>serve / fetch</b> — web server + http client, built in</li>
   <li><b>sb pack deb|rpm|exe</b> — ship it as installers</li>
-  <li><b>std/</b> — maths, lists, crypto, datetime, fp, ui, shimtorch</li>
+  <li><b>std/</b> — maths, lists, crypto, datetime, fp, ui, shimtorch, game, ketiwe3d</li>
+  <li><b>sprites + 3D</b> — PPM blits with transparency, wireframe and solid cubes</li>
 </ul>
 
 <p class="note">psst — every statement ends with a dot. that's the whole rule.

@@ -143,8 +143,11 @@ add_to <span class="k">with</span> xs <span class="k">and</span> 4.
 <div class="card alt">
 <pre>shimgui_window <span class="k">with</span> <span class="s">"App"</span> <span class="k">and</span> 460 <span class="k">and</span> 320.
 shimgui_label <span class="k">with</span> <span class="s">"Hello"</span>.
+shimgui_entry <span class="k">with</span> <span class="s">"Name..."</span>.
 shimgui_button <span class="k">with</span> <span class="s">"Click"</span>.
-shimgui_run <span class="k">with</span>.</pre>
+shimgui_run <span class="k">with</span>.
+<span class="k">say</span> shimgui_entry_text <span class="k">with</span> 0.  <span class="c"># what was typed</span>
+<span class="k">say</span> shimgui_last_click <span class="k">with</span>.     <span class="c"># which button</span></pre>
 </div>
 
 <h2><span class="num">D</span>cli</h2>
@@ -162,6 +165,8 @@ shimgui_run <span class="k">with</span>.</pre>
   <li><b>maths / lists / strings</b> — the basics, fast</li>
   <li><b>files / crypto / datetime</b> — real I/O</li>
   <li><b>ui / shimgui / fp</b> — glass HTML kit + native GTK + functional</li>
+  <li><b>game</b> — collision, fixed-timestep loops, overlapping sfx, tilemaps</li>
+  <li><b>ketiwe / ketiwe3d</b> — pixel GUI, sprites, wireframe and solid 3D</li>
   <li><b>serve / fetch</b> — web server + http client</li>
   <li><b>nob / shimtorch</b> — tiny numpy/torch in SB</li>
 </ul>

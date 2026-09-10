@@ -148,7 +148,9 @@ static int shim_load_curl(void) {
 // single source for "<name> needs <want>" argument errors (defined below)
 static Value val_need_args(const char *name, const char *want);
 // color parser shared by ketiwe natives (defined below)
+#ifndef SB_NO_GUI
 static unsigned ketiwe_color_arg(Value *v);
+#endif
 
 static void interp_error_code(Interpreter *interp, int line, ErrorCode code, const char *msg) {    if (!interp->had_error) {
         interp->had_error = 1;
@@ -1116,28 +1118,6 @@ static Value native_ketiwe_input(int argc, Value *args) {
 
 static Value native_ketiwe_key_press(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_key_press()); }
 
-// ── Math: trig + roots for graphics/physics (radians) ──────────────
-static Value native_sin(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sin", "1 arg: radians");
-    return val_number(sin(args[0].as.number));
-}
-
-static Value native_cos(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("cos", "1 arg: radians");
-    return val_number(cos(args[0].as.number));
-}
-
-static Value native_sqrt(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sqrt", "1 arg: number");
-    if (args[0].as.number < 0) return val_error_code("sqrt of negative number", ERR_BAD_ARGS);
-    return val_number(sqrt(args[0].as.number));
-}
-
-static Value native_pi(int argc, Value *args) {
-    (void)argc; (void)args;
-    return val_number(3.141592653589793);
-}
-
 static Value native_ketiwe_input_text(int argc, Value *args) {
     if (argc < 1 || args[0].type != VAL_NUMBER) return val_string("");
     return val_string(ketiwe_input_text((int)args[0].as.number));
@@ -1270,6 +1250,29 @@ static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)
 static Value native_ketiwe_key_press(int argc, Value *args) { (void)argc;(void)args; return val_number(0); }
 static Value native_ketiwe_input_text(int argc, Value *args) { (void)argc;(void)args; return val_string(""); }
 #endif
+
+// ── Math: trig + roots for graphics/physics (radians) ──────────────
+// NOTE: outside any SB_NO_GUI gate — console builds need these too.
+static Value native_sin(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sin", "1 arg: radians");
+    return val_number(sin(args[0].as.number));
+}
+
+static Value native_cos(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("cos", "1 arg: radians");
+    return val_number(cos(args[0].as.number));
+}
+
+static Value native_sqrt(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sqrt", "1 arg: number");
+    if (args[0].as.number < 0) return val_error_code("sqrt of negative number", ERR_BAD_ARGS);
+    return val_number(sqrt(args[0].as.number));
+}
+
+static Value native_pi(int argc, Value *args) {
+    (void)argc; (void)args;
+    return val_number(3.141592653589793);
+}
 
 static Value native_type_of(int argc, Value *args) {
     if (argc < 1) return val_string("nothing");
