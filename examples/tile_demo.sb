@@ -1,0 +1,39 @@
+SB
+## Tile demo — tilemap, transparent animation, bouncing keyed sprite
+## Run from the repo root so assets/ resolves.
+pls bring ketiwe.
+pls bring game.
+
+ketiwe_window("Tiles", 640, 480).
+
+set sheet to sprite_load with "assets/sheet.ppm".
+set tiles to list with 0 and 1 and 0 and 1 and 0 and 1 and 0 and 1 and 0.
+set frame to 0.
+set bx to 100.
+set by to 200.
+set vx to 4.
+set close to 0.
+set frames to 0.
+set t0 to time_ms with.
+
+while close is 0 then
+  set fstart to time_ms with.
+  set bx to bx plus vx.
+  set right to bx plus 32.
+  if bx is less than 0 or right is greater than 640 then
+    set vx to 0 minus vx.
+  end
+  ketiwe_clear("#12081f").
+  tilemap_draw with sheet and tiles and 3 and 32 and 32 and 224 and 96 and 2.
+  set frame to anim_draw_key with sheet and frame and 2 and 32 and 32 and 2 and 304 and 240 and "#ff00ff".
+  sprite_draw_region_key with sheet and 0 and 0 and 32 and 32 and bx and by and "#ff00ff".
+  set frames to frames plus 1.
+  set now to time_ms with.
+  set fps to fps_of with frames and now minus t0.
+  ketiwe_text(16, 28, "tiles plus transparent anim — fps: ${fps}").
+  ketiwe_flip().
+  frame_sleep with fstart and 16.
+  set close to ketiwe_poll().
+end
+
+say "Tile demo closed.".

@@ -24,6 +24,7 @@ void ketiwe_sprite_draw(int id, int x, int y);
 void ketiwe_sprite_draw_key(int id, int x, int y, unsigned key);
 void ketiwe_sprite_draw_scaled(int id, int x, int y, int w, int h);
 void ketiwe_sprite_draw_region(int id, int sx, int sy, int sw, int sh, int dx, int dy);
+void ketiwe_sprite_draw_region_key(int id, int sx, int sy, int sw, int sh, int dx, int dy, unsigned key);
 int ketiwe_sprite_w(int id);
 int ketiwe_sprite_h(int id);
 void ketiwe_sprite_free(int id);

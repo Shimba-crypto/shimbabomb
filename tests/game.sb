@@ -25,3 +25,11 @@ assert is_error with okv is false.
 assert err_name with err_code with okv is "none".
 set terr to sin with "x".
 assert err_name with err_code with terr is "bad_args".
+set sheet to sprite_load with "assets/sheet.ppm".
+assert sprite_w with sheet is 64.
+sprite_draw_region_key with sheet and 0 and 0 and 32 and 32 and 5 and 5 and "#ff00ff".
+set fr to anim_draw_key with sheet and 0 and 2 and 32 and 32 and 2 and 9 and 9 and "#ff00ff".
+assert fr is 1.
+set fr to anim_draw_key with sheet and fr and 2 and 32 and 32 and 2 and 9 and 9 and "#ff00ff".
+assert fr is 0.
+sprite_free with sheet.

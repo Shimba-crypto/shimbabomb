@@ -92,3 +92,11 @@ define anim_draw with sheet and frame and nframes and tw and th and cols and dx 
     sprite_draw_region with sheet and sx and sy and tw and th and dx and dy.
     give back (frame plus 1) mod nframes.
 end.
+
+define anim_draw_key with sheet and frame and nframes and tw and th and cols and dx and dy and key as
+    set f to frame mod nframes.
+    set sx to f mod cols times tw.
+    set sy to f divided evenly by cols times th.
+    sprite_draw_region_key with sheet and sx and sy and tw and th and dx and dy and key.
+    give back (frame plus 1) mod nframes.
+end.
