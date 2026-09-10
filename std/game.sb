@@ -65,3 +65,30 @@ define sfx with name as
     play_bg with name.
     give back 1.
 end.
+
+# ---------- tiles and animation (needs sprite_draw_region) ----------
+
+define tilemap_draw with sheet and tiles and cols and tw and th and ox and oy and sheet_cols as
+    set n to length with tiles.
+    count i from 0 to n minus 1 then
+        set t to item with i and tiles.
+        set gx to i mod cols.
+        set gy to i divided evenly by cols.
+        set stx to t mod sheet_cols.
+        set sty to t divided evenly by sheet_cols.
+        set sx to stx times tw.
+        set sy to sty times th.
+        set dx to ox plus gx times tw.
+        set dy to oy plus gy times th.
+        sprite_draw_region with sheet and sx and sy and tw and th and dx and dy.
+    end
+    give back n.
+end.
+
+define anim_draw with sheet and frame and nframes and tw and th and cols and dx and dy as
+    set f to frame mod nframes.
+    set sx to f mod cols times tw.
+    set sy to f divided evenly by cols times th.
+    sprite_draw_region with sheet and sx and sy and tw and th and dx and dy.
+    give back (frame plus 1) mod nframes.
+end.

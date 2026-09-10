@@ -15,3 +15,11 @@ assert ((a is 99 or b is 99) and c is 10) is false.
 assert not a is less than 0 is true.
 assert not (a > b) is true.
 assert not a is b is true.
+set w to 32.
+assert a plus w is greater than 5 is true.
+assert a plus w is 33 is true.
+set items to list with 10 and 20 and 30.
+assert item with (0 plus 1) and items is 20.
+set out2 to list with.
+add_to with out2 and (item with 0 and items).
+assert out2 is list with 10.

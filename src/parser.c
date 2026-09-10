@@ -356,7 +356,7 @@ static AstNode *parse_comparison(Parser *p) {
         AstNode *inner = parse_comparison(p);
         return node_unary(TOKEN_NOT, inner, line);
     }
-    AstNode *left = parse_term(p);
+    AstNode *left = parse_additive(p);
     if (parser_had_error(p)) return left;
 
     if (parser_check(p, TOKEN_NOTEQ)) {
@@ -379,15 +379,6 @@ static AstNode *parse_comparison(Parser *p) {
         parser_advance(p);
         AstNode *right = parse_additive(p);
         return node_binary(left, TOKEN_EQUAL, right, line);
-    }
-    // no comparison — continue additive chain from left
-    for (;;) {
-        TokenType op = p->current.type;
-        if (op != TOKEN_PLUS && op != TOKEN_MINUS) break;
-        int line = p->current.line;
-        parser_advance(p);
-        AstNode *right = parse_term(p);
-        left = node_binary(left, op, right, line);
     }
     return left;
 }

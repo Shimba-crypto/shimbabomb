@@ -147,6 +147,8 @@ static int shim_load_curl(void) {
 
 // single source for "<name> needs <want>" argument errors (defined below)
 static Value val_need_args(const char *name, const char *want);
+// color parser shared by ketiwe natives (defined below)
+static unsigned ketiwe_color_arg(Value *v);
 
 static void interp_error_code(Interpreter *interp, int line, ErrorCode code, const char *msg) {    if (!interp->had_error) {
         interp->had_error = 1;
@@ -1173,6 +1175,39 @@ static Value native_sprite_free(int argc, Value *args) {
     return val_nil();
 }
 
+static Value native_sprite_draw_key(int argc, Value *args) {
+    if (argc < 4) return val_need_args("sprite_draw_key", "4 args: id, x, y, color");
+    int id = (args[0].type == VAL_NUMBER) ? (int)args[0].as.number : -1;
+    int x = (args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
+    int y = (args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
+    ketiwe_sprite_draw_key(id, x, y, ketiwe_color_arg(&args[3]));
+    return val_nil();
+}
+
+static Value native_sprite_draw_scaled(int argc, Value *args) {
+    if (argc < 5) return val_need_args("sprite_draw_scaled", "5 args: id, x, y, w, h");
+    int id = (args[0].type == VAL_NUMBER) ? (int)args[0].as.number : -1;
+    int x = (args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
+    int y = (args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
+    int w = (args[3].type == VAL_NUMBER) ? (int)args[3].as.number : 0;
+    int h = (args[4].type == VAL_NUMBER) ? (int)args[4].as.number : 0;
+    ketiwe_sprite_draw_scaled(id, x, y, w, h);
+    return val_nil();
+}
+
+static Value native_sprite_draw_region(int argc, Value *args) {
+    if (argc < 7) return val_need_args("sprite_draw_region", "7 args: id, sx, sy, sw, sh, dx, dy");
+    int id = (args[0].type == VAL_NUMBER) ? (int)args[0].as.number : -1;
+    int sx = (args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
+    int sy = (args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
+    int sw = (args[3].type == VAL_NUMBER) ? (int)args[3].as.number : 0;
+    int sh = (args[4].type == VAL_NUMBER) ? (int)args[4].as.number : 0;
+    int dx = (args[5].type == VAL_NUMBER) ? (int)args[5].as.number : 0;
+    int dy = (args[6].type == VAL_NUMBER) ? (int)args[6].as.number : 0;
+    ketiwe_sprite_draw_region(id, sx, sy, sw, sh, dx, dy);
+    return val_nil();
+}
+
 static unsigned ketiwe_color_arg(Value *v) {
     if (v->type == VAL_NUMBER) return (unsigned)v->as.number;
     if (v->type == VAL_STRING) {
@@ -1221,6 +1256,9 @@ static Value native_sprite_draw(int argc, Value *args) { (void)argc;(void)args; 
 static Value native_sprite_w(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
 static Value native_sprite_h(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
 static Value native_sprite_free(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_sprite_draw_key(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_sprite_draw_scaled(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_sprite_draw_region(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
 static Value native_ketiwe_line(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
 static Value native_ketiwe_rect_outline(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
 static Value native_ketiwe_clear(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
@@ -2431,6 +2469,9 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "sprite_w",   val_native(native_sprite_w,   "sprite_w"));
     env_set(interp->global, "sprite_h",   val_native(native_sprite_h,   "sprite_h"));
     env_set(interp->global, "sprite_free",val_native(native_sprite_free,"sprite_free"));
+    env_set(interp->global, "sprite_draw_key",val_native(native_sprite_draw_key,"sprite_draw_key"));
+    env_set(interp->global, "sprite_draw_scaled",val_native(native_sprite_draw_scaled,"sprite_draw_scaled"));
+    env_set(interp->global, "sprite_draw_region",val_native(native_sprite_draw_region,"sprite_draw_region"));
     env_set(interp->global, "run",        val_native(native_run_cmd,    "run"));
     env_set(interp->global, "map",        val_native(native_make_map,   "map"));
     env_set(interp->global, "keys",       val_native(native_keys,       "keys"));
