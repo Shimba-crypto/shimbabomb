@@ -22,7 +22,7 @@ while close is 0 then
 
   set pressed to ketiwe_button(20, 160, 140, 50, "Click Me")
   if pressed is 1 then
-    set clicks to clicks + 1
+    set clicks to clicks plus 1
   end
 
   set close_btn to ketiwe_button(180, 160, 140, 50, "Quit")

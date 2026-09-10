@@ -122,7 +122,7 @@ define st_backward with tape and seedid and lookup as
                 set grads[bid2] to gout.
             end
         with "SUB" then
-            set ng to nob_scale with gout and -1.
+            set ng to nob_scale with gout and minus 1.
             set bid2 to e["b"].
             set gb to grads[bid2].
             if gb then

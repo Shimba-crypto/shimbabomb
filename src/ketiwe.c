@@ -61,12 +61,33 @@ int ketiwe_window(const char *title, int w, int h) {
 
 void ketiwe_rect(int x, int y, int w, int h, unsigned color) {
     if (!dpy || !win || !backgc) return;
+    if (w <= 0 || h <= 0) return;
     XSetForeground(dpy, backgc, color & 0xFFFFFF);
     XFillRectangle(dpy, backbuf, backgc, x, y, w, h);
 }
 
+void ketiwe_rect_outline(int x, int y, int w, int h, unsigned color) {
+    if (!dpy || !win || !backgc) return;
+    if (w <= 0 || h <= 0) return;
+    XSetForeground(dpy, backgc, color & 0xFFFFFF);
+    XDrawRectangle(dpy, backbuf, backgc, x, y, w, h);
+}
+
+void ketiwe_line(int x1, int y1, int x2, int y2, unsigned color) {
+    if (!dpy || !win || !backgc) return;
+    XSetForeground(dpy, backgc, color & 0xFFFFFF);
+    XDrawLine(dpy, backbuf, backgc, x1, y1, x2, y2);
+}
+
+void ketiwe_clear(unsigned color) {
+    if (!dpy || !win || !backgc) return;
+    XSetForeground(dpy, backgc, color & 0xFFFFFF);
+    XFillRectangle(dpy, backbuf, backgc, 0, 0, win_w, win_h);
+}
+
 void ketiwe_circle(int cx, int cy, int r, unsigned color) {
     if (!dpy || !win || !backgc) return;
+    if (r <= 0) return;
     XSetForeground(dpy, backgc, color & 0xFFFFFF);
     XFillArc(dpy, backbuf, backgc, cx - r, cy - r, r * 2, r * 2, 0, 360 * 64);
 }
@@ -80,6 +101,8 @@ void ketiwe_text(int x, int y, const char *text) {
 
 int ketiwe_button(int x, int y, int w, int h, const char *label) {
     if (!dpy || !win || !backgc) return 0;
+    if (w < 3) w = 3;
+    if (h < 3) h = 3;
     int hover = (mouse_x >= x && mouse_x < x+w && mouse_y >= y && mouse_y < y+h);
     int clicked = (click_x >= x && click_x < x+w && click_y >= y && click_y < y+h);
     unsigned bg = hover ? 0x7c5ce0 : 0xa78bfa;
@@ -214,10 +237,130 @@ void ketiwe_close(void) {
     }
     should_close = 0;
 }
+
+// ── Sprites: PPM (P3 text / P6 binary) load, X11 blit ───────────────
+// No image-format deps: convert PNG/JPG to PPM once with
+// `convert in.png out.ppm` or `ffmpeg -i in.png out.ppm`.
+#define KETIWE_MAX_SPRITES 64
+#define KETIWE_MAX_SPR_DIM 512
+typedef struct { int used; int w; int h; unsigned char *px; } KetiweSprite;
+static KetiweSprite ketiwe_sprites[KETIWE_MAX_SPRITES];
+
+static int ketiwe_ppm_next_ascii(FILE *f, int *v) {
+    int c;
+    for (;;) {
+        c = fgetc(f);
+        if (c == EOF) return 0;
+        if (c == '#') { while ((c = fgetc(f)) != EOF && c != '\n'); continue; }
+        if (c==' '||c=='\t'||c=='\r'||c=='\n') continue;
+        break;
+    }
+    ungetc(c, f);
+    return fscanf(f, "%d", v) == 1;
+}
+
+int ketiwe_sprite_load(const char *path) {
+    if (!path) return -1;
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+    int slot = -1;
+    for (int i = 0; i < KETIWE_MAX_SPRITES; i++) {
+        if (!ketiwe_sprites[i].used) { slot = i; break; }
+    }
+    if (slot < 0) { fclose(f); return -1; }
+    char magic[2];
+    if (fread(magic, 1, 2, f) != 2 || magic[0] != 'P' ||
+        (magic[1] != '3' && magic[1] != '6')) { fclose(f); return -1; }
+    int ascii = (magic[1] == '3');
+    int w = 0, h = 0, maxv = 0;
+    if (ascii) {
+        if (!ketiwe_ppm_next_ascii(f, &w) || !ketiwe_ppm_next_ascii(f, &h) ||
+            !ketiwe_ppm_next_ascii(f, &maxv)) { fclose(f); return -1; }
+    } else {
+        // binary header: same tokens, then exactly one whitespace byte
+        char hdr[64]; int hn = 0, vals[3], nv = 0;
+        int c, in_comment = 0;
+        while (nv < 3 && (c = fgetc(f)) != EOF) {
+            if (in_comment) { if (c == '\n') in_comment = 0; continue; }
+            if (c == '#') { in_comment = 1; continue; }
+            if (c==' '||c=='\t'||c=='\r'||c=='\n') {
+                if (hn > 0) { hdr[hn] = '\0'; vals[nv++] = atoi(hdr); hn = 0; }
+                continue;
+            }
+            if (hn < (int)sizeof(hdr)-1) hdr[hn++] = (char)c;
+        }
+        if (nv < 3) { fclose(f); return -1; }
+        w = vals[0]; h = vals[1]; maxv = vals[2];
+        // nv==3 means we stopped at the single delimiter right after maxv
+    }
+    if (w <= 0 || h <= 0 || w > KETIWE_MAX_SPR_DIM || h > KETIWE_MAX_SPR_DIM ||
+        maxv <= 0 || maxv > 255) { fclose(f); return -1; }
+    unsigned char *px = malloc((size_t)w * h * 3);
+    if (!px) { fclose(f); return -1; }
+    for (int i = 0; i < w * h * 3; i++) {
+        int v = 0;
+        if (ascii) {
+            if (!ketiwe_ppm_next_ascii(f, &v)) { free(px); fclose(f); return -1; }
+        } else {
+            v = fgetc(f);
+            if (v == EOF) { free(px); fclose(f); return -1; }
+        }
+        if (v < 0) v = 0;
+        if (v > maxv) v = maxv;
+        px[i] = (unsigned char)(v * 255 / maxv);
+    }
+    fclose(f);
+    ketiwe_sprites[slot].used = 1;
+    ketiwe_sprites[slot].w = w;
+    ketiwe_sprites[slot].h = h;
+    ketiwe_sprites[slot].px = px;
+    return slot;
+}
+
+void ketiwe_sprite_draw(int id, int x, int y) {
+    if (!dpy || !win || !backbuf) return;
+    if (id < 0 || id >= KETIWE_MAX_SPRITES || !ketiwe_sprites[id].used) return;
+    int scr = DefaultScreen(dpy);
+    int w = ketiwe_sprites[id].w, h = ketiwe_sprites[id].h;
+    XImage *img = XCreateImage(dpy, DefaultVisual(dpy, scr), DefaultDepth(dpy, scr),
+                               ZPixmap, 0, NULL, w, h, 8, 0);
+    if (!img) return;
+    img->data = malloc(img->bytes_per_line * (size_t)h);
+    if (!img->data) { img->data = NULL; XDestroyImage(img); return; }
+    for (int r = 0; r < h; r++) {
+        for (int c = 0; c < w; c++) {
+            unsigned char *p = &ketiwe_sprites[id].px[(size_t)(r * w + c) * 3];
+            unsigned long v = ((unsigned long)p[0] << 16) | ((unsigned long)p[1] << 8) | p[2];
+            XPutPixel(img, c, r, v);
+        }
+    }
+    XPutImage(dpy, backbuf, backgc, img, 0, 0, x, y, w, h);
+    XDestroyImage(img);
+}
+
+int ketiwe_sprite_w(int id) {
+    if (id < 0 || id >= KETIWE_MAX_SPRITES || !ketiwe_sprites[id].used) return -1;
+    return ketiwe_sprites[id].w;
+}
+
+int ketiwe_sprite_h(int id) {
+    if (id < 0 || id >= KETIWE_MAX_SPRITES || !ketiwe_sprites[id].used) return -1;
+    return ketiwe_sprites[id].h;
+}
+
+void ketiwe_sprite_free(int id) {
+    if (id < 0 || id >= KETIWE_MAX_SPRITES || !ketiwe_sprites[id].used) return;
+    free(ketiwe_sprites[id].px);
+    ketiwe_sprites[id].px = NULL;
+    ketiwe_sprites[id].used = 0;
+}
 #else
 int ketiwe_init(void){return 0;}
 int ketiwe_window(const char *t,int w,int h){(void)t;(void)w;(void)h;return 0;}
 void ketiwe_rect(int x,int y,int w,int h,unsigned c){(void)x;(void)y;(void)w;(void)h;(void)c;}
+void ketiwe_rect_outline(int x,int y,int w,int h,unsigned c){(void)x;(void)y;(void)w;(void)h;(void)c;}
+void ketiwe_line(int x1,int y1,int x2,int y2,unsigned c){(void)x1;(void)y1;(void)x2;(void)y2;(void)c;}
+void ketiwe_clear(unsigned c){(void)c;}
 void ketiwe_circle(int cx,int cy,int r,unsigned c){(void)cx;(void)cy;(void)r;(void)c;}
 void ketiwe_text(int x,int y,const char *t){(void)x;(void)y;(void)t;}
 int ketiwe_button(int x,int y,int w,int h,const char *l){(void)x;(void)y;(void)w;(void)h;(void)l;return 0;}
@@ -227,4 +370,9 @@ void ketiwe_flip(void){}
 void ketiwe_close(void){}
 int ketiwe_key_press(void){return 0;}
 const char *ketiwe_input_text(int i){(void)i;return "";}
+int ketiwe_sprite_load(const char *p){(void)p;return -1;}
+void ketiwe_sprite_draw(int id,int x,int y){(void)id;(void)x;(void)y;}
+int ketiwe_sprite_w(int id){(void)id;return -1;}
+int ketiwe_sprite_h(int id){(void)id;return -1;}
+void ketiwe_sprite_free(int id){(void)id;}
 #endif

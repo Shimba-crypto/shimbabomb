@@ -1,0 +1,31 @@
+SB
+pls bring ketiwe.
+pls bring shimgui.
+
+assert inside with 50 and 50 and 10 and 10 and 100 and 100 is 1.
+assert inside with 5 and 50 and 10 and 10 and 100 and 100 is 0.
+assert inside with 10 and 10 and 10 and 10 and 100 and 100 is 1.
+assert inside with 110 and 110 and 10 and 10 and 100 and 100 is 0.
+assert clamp_num with 5 and 0 and 10 is 5.
+assert clamp_num with minus 3 and 0 and 10 is 0.
+assert clamp_num with 99 and 0 and 10 is 10.
+set box to center_box with 100 and 60 and 20 and 10.
+assert box["x"] is 40.
+assert box["y"] is 25.
+set xs to row_xs with 10 and 30 and 5 and 3.
+assert xs is list with 10 and 45 and 80.
+set ys to col_ys with 0 and 10 and 10 and 2.
+assert ys is list with 0 and 20.
+set hdrs to list with "a" and "b".
+set cellrow to list with 1 and 2.
+set rows to list with cellrow.
+set t to shimgui_table with hdrs and rows.
+assert contains with t and "<table class='card'>" is true.
+assert contains with t and "<td class='mono'>1</td>" is true.
+set al to shimgui_alert with "boom" and "err".
+assert contains with al and "b-err" is true.
+set items to list with "x" and "y".
+set li to shimgui_list with items.
+assert contains with li and "<li class='row'>x</li>" is true.
+set rw to shimgui_row with "l" and "r".
+assert contains with rw and "class='row'" is true.

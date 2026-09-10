@@ -1,0 +1,27 @@
+SB
+pls bring game.
+
+assert hit_box with 0 and 0 and 10 and 10 and 5 and 5 and 10 and 10 is 1.
+assert hit_box with 0 and 0 and 10 and 10 and 50 and 50 and 10 and 10 is 0.
+assert hit_box with 0 and 0 and 10 and 10 and 10 and 0 and 10 and 10 is 1.
+assert hit_circle with 0 and 0 and 5 and 3 and 4 and 5 is 1.
+assert hit_circle with 0 and 0 and 1 and 100 and 100 and 1 is 0.
+assert hit_point with 5 and 5 and 0 and 0 and 10 and 10 is 1.
+assert hit_point with 50 and 5 and 0 and 0 and 10 and 10 is 0.
+assert fps_of with 60 and 1000 is 60.
+assert fps_of with 10 and 0 is 0.
+set t0 to time_ms with.
+sleep_ms with 20.
+set t1 to time_ms with.
+set dt to t1 minus t0.
+assert ((dt is greater than 5 or dt is 5) and (dt is less than 5000)) is true.
+set fs to frame_sleep with t1 and 5.
+assert (fs is greater than 0 or fs is 0) is true.
+set bad to sprite_load with "/no/such/file.ppm".
+assert is_error with bad is true.
+assert err_name with err_code with bad is "io".
+set okv to 1 plus 2.
+assert is_error with okv is false.
+assert err_name with err_code with okv is "none".
+set terr to sin with "x".
+assert err_name with err_code with terr is "bad_args".

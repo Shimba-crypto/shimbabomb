@@ -64,6 +64,9 @@ h2{font-size:20px;font-weight:600}
 .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px}
 .kv dt{color:var(--muted)}
+table.card{width:100%;border-collapse:collapse}
+.card th,.card td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-size:14px}
+.card th{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing:.06em}
 .input{background:rgba(255,255,255,0.10);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);min-height:44px;flex:1}
 .input::placeholder{color:var(--muted)}
 footer{margin-top:32px;color:var(--muted);font-size:14px;display:flex;justify-content:space-between}
@@ -196,6 +199,47 @@ end.
 
 define shimgui_kv_close as
     give back "</dl>".
+end.
+
+define shimgui_row with left_html and right_html as
+    give back "<div class='row'><span>" plus left_html plus "</span><span>" plus right_html plus "</span></div>".
+end.
+
+define shimgui_alert with text and tone as
+    set cls to "b-ok".
+    if tone is "warn" then
+        set cls to "b-warn".
+    end
+    if tone is "err" then
+        set cls to "b-err".
+    end
+    give back "<div class='card'><span class='badge " plus cls plus "'>" plus tone plus "</span><p>" plus text plus "</p></div>".
+end.
+
+define shimgui_list with items as
+    set out to "<ul class='rows card'>".
+    loop it through items then
+        set out to out plus "<li class='row'>" plus it plus "</li>".
+    end
+    set out to out plus "</ul>".
+    give back out.
+end.
+
+define shimgui_table with headers and rows as
+    set out to "<table class='card'><tr>".
+    loop h through headers then
+        set out to out plus "<th>" plus h plus "</th>".
+    end
+    set out to out plus "</tr>".
+    loop r through rows then
+        set out to out plus "<tr>".
+        loop c through r then
+            set out to out plus "<td class='mono'>" plus c plus "</td>".
+        end
+        set out to out plus "</tr>".
+    end
+    set out to out plus "</table>".
+    give back out.
 end.
 
 # ---------- glass orb icon ----------

@@ -158,10 +158,10 @@ define n2b_caesar with text and shift as
     count i from 0 to n minus 1 then
         set ch to text[i].
         set pos to find with lower_alpha and ch.
-        if pos is -1 then
+        if pos is minus 1 then
             set pos to find with upper_alpha and ch.
         end
-        if pos is -1 then
+        if pos is minus 1 then
             set outv to outv plus ch.
         otherwise
             set newpos to pos plus shift.
@@ -173,7 +173,7 @@ define n2b_caesar with text and shift as
             end
             set shifted to lower_alpha[newpos].
             set wasupper to find with upper_alpha and ch.
-            if wasupper is -1 then
+            if wasupper is minus 1 then
                 set outv to outv plus shifted.
             otherwise
                 set outv to outv plus upper with shifted.

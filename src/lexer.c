@@ -243,6 +243,10 @@ Token lexer_next_token(Lexer *lexer) {
     if (c=='-') return make_token(lexer, TOKEN_MINUS);
     if (c=='*') return make_token(lexer, TOKEN_STAR);
     if (c=='/') return make_token(lexer, TOKEN_SLASH);
+    if (c=='<') { if (peek(lexer)=='=') { advance(lexer); return make_token(lexer, TOKEN_LESSEQ); } return make_token(lexer, TOKEN_LESS); }
+    if (c=='>') { if (peek(lexer)=='=') { advance(lexer); return make_token(lexer, TOKEN_GREATEREQ); } return make_token(lexer, TOKEN_GREATER); }
+    if (c=='=') { if (peek(lexer)=='=') advance(lexer); return make_token(lexer, TOKEN_EQUAL); }
+    if (c=='!') { if (peek(lexer)=='=') { advance(lexer); return make_token(lexer, TOKEN_NOTEQ); } return error_token(lexer, "unexpected character (did you mean 'is not'?)"); }
     if (c=='.') return make_token(lexer, TOKEN_DOT);
     if (c=='(') return make_token(lexer, TOKEN_LPAREN);
     if (c==')') return make_token(lexer, TOKEN_RPAREN);
@@ -283,6 +287,7 @@ const char *token_type_name(TokenType type) {
         case TOKEN_MATCH: return "MATCH";     case TOKEN_ASSERT: return "ASSERT";
         case TOKEN_FN: return "FN";         case TOKEN_LAMBDA: return "LAMBDA";
         case TOKEN_NOTEQ: return "NOTEQ"; case TOKEN_MOD: return "MOD";
+        case TOKEN_LESSEQ: return "LESSEQ"; case TOKEN_GREATEREQ: return "GREATEREQ";
         case TOKEN_INTDIV: return "INTDIV"; case TOKEN_OR: return "OR";
         case TOKEN_PLS: return "PLS";         case TOKEN_BRING: return "BRING";
         case TOKEN_START: return "START";     case TOKEN_TASK: return "TASK";

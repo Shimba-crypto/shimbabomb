@@ -1,0 +1,31 @@
+SB
+## Ketiwe 3D demo — rotating wireframe cube, software rendered
+## Pure SB math (std/ketiwe3d) plus ketiwe_line. Esc quits.
+pls bring ketiwe.
+pls bring ketiwe3d.
+
+ketiwe_window("Ketiwe 3D Cube", 640, 480).
+
+set verts to cube_verts with 60.
+set edges to cube_edges with.
+set ang to 0.
+set close to 0.
+
+while close is 0 then
+  ketiwe_clear("#12081f").
+  set ang to ang plus 0.03.
+  set half to ang divided by 2.
+  set rv to list with.
+  loop v through verts then
+    set r1 to rot_y with v and ang.
+    set r2 to rot_x with r1 and half.
+    add_to with rv and r2.
+  end
+  draw_wire with rv and edges and 300 and 320 and 240 and "#a78bfa".
+  ketiwe_text(20, 30, "wireframe cube — Esc quits").
+  ketiwe_text(20, 50, "angle: ${ang}").
+  ketiwe_flip().
+  set close to ketiwe_poll().
+end
+
+say "3D demo closed.".

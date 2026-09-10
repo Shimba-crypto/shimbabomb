@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
+#include <time.h>
 
 #if defined(_WIN32)
 #define SB_NO_GUI 1
@@ -54,6 +56,7 @@ static void (*shim_gtk_label_set_line_wrap)(GtkLabel*, gboolean) = NULL;
 static GtkWidget* (*shim_gtk_button_new_with_label)(const gchar*) = NULL;
 static GtkWidget* (*shim_gtk_entry_new)(void) = NULL;
 static void (*shim_gtk_entry_set_placeholder_text)(GtkEntry*, const gchar*) = NULL;
+static const gchar* (*shim_gtk_entry_get_text)(GtkEntry*) = NULL;
 static void (*shim_gtk_box_pack_start)(GtkBox*, GtkWidget*, gboolean, gboolean, guint) = NULL;
 static void (*shim_gtk_main)(void) = NULL;
 static void (*shim_gtk_main_quit)(void) = NULL;
@@ -92,6 +95,7 @@ static int shim_load_gtk(void) {
     shim_gtk_button_new_with_label = dlsym(shim_gtk_handle, "gtk_button_new_with_label");
     shim_gtk_entry_new = dlsym(shim_gtk_handle, "gtk_entry_new");
     shim_gtk_entry_set_placeholder_text = dlsym(shim_gtk_handle, "gtk_entry_set_placeholder_text");
+    shim_gtk_entry_get_text = dlsym(shim_gtk_handle, "gtk_entry_get_text");
     shim_gtk_box_pack_start = dlsym(shim_gtk_handle, "gtk_box_pack_start");
     shim_gtk_main = dlsym(shim_gtk_handle, "gtk_main");
     shim_gtk_main_quit = dlsym(shim_gtk_handle, "gtk_main_quit");
@@ -141,8 +145,10 @@ static int shim_load_curl(void) {
 }
 #endif
 
-static void interp_error_code(Interpreter *interp, int line, ErrorCode code, const char *msg) {
-    if (!interp->had_error) {
+// single source for "<name> needs <want>" argument errors (defined below)
+static Value val_need_args(const char *name, const char *want);
+
+static void interp_error_code(Interpreter *interp, int line, ErrorCode code, const char *msg) {    if (!interp->had_error) {
         interp->had_error = 1;
         interp->error_code = code;
         interp->error_line = line;
@@ -687,25 +693,25 @@ static Value native_has(int argc, Value *args) {
 }
 
 static Value native_read_file(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_STRING) return val_error("read needs a filename");
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("read", "a filename");
     char *content = read_file_cstr(args[0].as.string);
-    if (!content) return val_error("cannot read file");
+    if (!content) return val_error_code("cannot read file", ERR_IO);
     Value v = val_string(content); free(content); return v;
 }
 
 static Value native_write_file(int argc, Value *args) {
     if (argc < 2 || args[0].type != VAL_STRING || args[1].type != VAL_STRING)
-        return val_error("write needs filename and content");
+        return val_need_args("write", "filename and content");
     FILE *f = fopen(args[0].as.string, "wb");
-    if (!f) return val_error("cannot write file");
+    if (!f) return val_error_code("cannot write file", ERR_IO);
     fputs(args[1].as.string, f); fclose(f); return val_nil();
 }
 
 static Value native_append_file(int argc, Value *args) {
     if (argc < 2 || args[0].type != VAL_STRING || args[1].type != VAL_STRING)
-        return val_error("append needs filename and content");
+        return val_need_args("append", "filename and content");
     FILE *f = fopen(args[0].as.string, "ab");
-    if (!f) return val_error("cannot append to file");
+    if (!f) return val_error_code("cannot append to file", ERR_IO);
     fputs(args[1].as.string, f); fclose(f); return val_nil();
 }
 
@@ -715,7 +721,7 @@ static Value native_file_exists(int argc, Value *args) {
 }
 
 static Value native_play(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_STRING) return val_error("play needs a filename");
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("play", "a filename");
 #ifdef _WIN32
     char cmd[1400];
     snprintf(cmd, sizeof(cmd),
@@ -727,14 +733,61 @@ static Value native_play(int argc, Value *args) {
         args[0].as.string, args[0].as.string, args[0].as.string);
 #endif
     if (system(cmd) == 0) return val_bool(1);
-    return val_error("no audio player found (paplay/aplay/afplay)");
+    return val_error_code("no audio player found (paplay/aplay/afplay)", ERR_AUDIO);
+}
+
+// fire-and-forget overlap: each call spawns its own player, so rapid
+// calls mix in the OS mixer (voice pool lives in std/game.sb: sfx)
+static Value native_play_bg(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("play_bg", "a filename");
+#ifdef _WIN32
+    char cmd[1400];
+    snprintf(cmd, sizeof(cmd),
+        "powershell -NoProfile -Command \"(New-Object Media.SoundPlayer '%s').Play()\"", args[0].as.string);
+#else
+    char cmd[1400];
+    snprintf(cmd, sizeof(cmd),
+        "(paplay '%s' 2>/dev/null || aplay '%s' 2>/dev/null || afplay '%s' 2>/dev/null) &",
+        args[0].as.string, args[0].as.string, args[0].as.string);
+#endif
+    if (system(cmd) == 0) return val_bool(1);
+    return val_error_code("no audio player found (paplay/aplay/afplay)", ERR_AUDIO);
+}
+
+// monotonic frame clock, milliseconds
+static Value native_time_ms(int argc, Value *args) {
+    (void)argc; (void)args;
+#ifdef _WIN32
+    return val_number((double)GetTickCount64());
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return val_number((double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1000000.0);
+#endif
+}
+
+// capped sleep for fixed-timestep loops (0..5000 ms)
+static Value native_sleep_ms(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sleep_ms", "1 arg: milliseconds");
+    long ms = (long)args[0].as.number;
+    if (ms < 0) ms = 0;
+    if (ms > 5000) ms = 5000;
+#ifdef _WIN32
+    Sleep((DWORD)ms);
+#else
+    struct timespec req;
+    req.tv_sec = ms / 1000;
+    req.tv_nsec = (ms % 1000) * 1000000L;
+    nanosleep(&req, NULL);
+#endif
+    return val_number((double)ms);
 }
 
 static Value native_run_cmd(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_STRING) return val_error("run needs a command");
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("run", "a command");
     char buf[4096];
     FILE *p = popen(args[0].as.string, "r");
-    if (!p) return val_error("cannot run command");
+    if (!p) return val_error_code("cannot run command", ERR_IO);
     size_t n = fread(buf, 1, sizeof(buf)-1, p);
     buf[n] = '\0'; pclose(p);
     while (n>0 && (buf[n-1]=='\n' || buf[n-1]=='\r')) buf[--n]='\0';
@@ -755,10 +808,10 @@ static size_t fetch_write(void *contents, size_t size, size_t nmemb, void *userp
     return realsize;
 }
 static Value native_fetch(int argc, Value *args) {
-    if (argc < 1 || args[0].type != VAL_STRING) return val_error("fetch needs a url");
-    if (!shim_load_curl()) return val_error("fetch: libcurl not available (install libcurl4)");
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("fetch", "a url");
+    if (!shim_load_curl()) return val_error_code("fetch: libcurl not available (install libcurl4)", ERR_IO);
     CURL *curl = shim_curl_easy_init();
-    if (!curl) return val_error("curl init failed");
+    if (!curl) return val_error_code("curl init failed", ERR_IO);
     struct FetchCtx ctx = { malloc(1), 0 };
     if (!ctx.data) { shim_curl_easy_cleanup(curl); return val_error("out of memory"); }
     ctx.data[0] = '\0';
@@ -778,7 +831,7 @@ static Value native_fetch(int argc, Value *args) {
 #else
 static Value native_fetch(int argc, Value *args) {
     (void)argc; (void)args;
-    return val_error("fetch: networking not available in this build");
+    return val_error_code("fetch: networking not available in this build", ERR_IO);
 }
 #endif
 
@@ -786,8 +839,8 @@ static Value native_fetch(int argc, Value *args) {
 static WebKitWebContext *shared_ctx = NULL;
 static Value native_window(int argc, Value *args) {
     setenv("WEBKIT_DISABLE_COMPOSITING_MODE", "1", 0);
-    if (!shim_load_gtk() || !shim_gtk_init_check(NULL, NULL)) return val_error("cannot open display");
-    if (!shim_load_webkit()) return val_error("webkit not available");
+    if (!shim_load_gtk() || !shim_gtk_init_check(NULL, NULL)) return val_error_code("cannot open display", ERR_GUI);
+    if (!shim_load_webkit()) return val_error_code("webkit not available", ERR_GUI);
     const char *title = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "ShimbaBomb";
     const char *text  = (argc > 1 && args[1].type == VAL_STRING) ? args[1].as.string : NULL;
     const char *url   = NULL;
@@ -828,26 +881,38 @@ static Value native_window(int argc, Value *args) {
 #else
 static Value native_window(int argc, Value *args) {
     (void)argc; (void)args;
-    return val_error("window: GUI not supported in this build");
+    return val_error_code("window: GUI not supported in this build", ERR_GUI);
 }
 #endif
 
 #ifndef SB_NO_GUI
 static GtkWidget *shimgui_win = NULL;
 static GtkWidget *shimgui_box = NULL;
+#define SHIMGUI_MAX_ENTRIES 8
+static GtkWidget *shimgui_entries[SHIMGUI_MAX_ENTRIES];
+static int shimgui_entry_count = 0;
+static char shimgui_entry_snap[SHIMGUI_MAX_ENTRIES][512];
+static int shimgui_entry_snap_n = 0;
+static char shimgui_last_click[256] = {0};
 
 static void shimgui_btn_clicked(GtkWidget *w, gpointer data) {
+    (void)w;
     const char *label = (const char*)data;
-    printf("[shimgui] '%s' clicked\n", label);
+    if (label) {
+        strncpy(shimgui_last_click, label, sizeof(shimgui_last_click)-1);
+        shimgui_last_click[sizeof(shimgui_last_click)-1] = '\0';
+    }
+    printf("[shimgui] '%s' clicked\n", label ? label : "");
     fflush(stdout);
 }
 
 static Value native_shimgui_window(int argc, Value *args) {
-    if (!shim_load_gtk() || !shim_gtk_init_check(NULL, NULL)) return val_error("cannot open display");
+    if (!shim_load_gtk() || !shim_gtk_init_check(NULL, NULL)) return val_error_code("cannot open display", ERR_GUI);
     const char *title = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "ShimGUI";
     int width = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 420;
     int height = (argc > 2 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 320;
     if (shimgui_win) { shim_gtk_widget_destroy(shimgui_win); shimgui_win = NULL; shimgui_box = NULL; }
+    shimgui_entry_count = 0; shimgui_entry_snap_n = 0; shimgui_last_click[0] = '\0';
     shimgui_win = shim_gtk_window_new(GTK_WINDOW_TOPLEVEL);
     shim_gtk_window_set_title(GTK_WINDOW(shimgui_win), title);
     shim_gtk_window_set_default_size(GTK_WINDOW(shimgui_win), width, height);
@@ -860,7 +925,7 @@ static Value native_shimgui_window(int argc, Value *args) {
 }
 
 static Value native_shimgui_label(int argc, Value *args) {
-    if (!shimgui_box) return val_error("no window — call shimgui_window first");
+    if (!shimgui_box) return val_error_code("no window — call shimgui_window first", ERR_GUI);
     const char *text = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "";
     GtkWidget *label = shim_gtk_label_new(text);
     shim_gtk_widget_set_halign(label, GTK_ALIGN_START);
@@ -871,21 +936,22 @@ static Value native_shimgui_label(int argc, Value *args) {
 }
 
 static Value native_shimgui_button(int argc, Value *args) {
-    if (!shimgui_box) return val_error("no window");
+    if (!shimgui_box) return val_error_code("no window", ERR_GUI);
     const char *label = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "Button";
     GtkWidget *btn = shim_gtk_button_new_with_label(label);
     char *copy = strdup(label);
     shim_g_signal_connect_data(btn, "clicked", G_CALLBACK(shimgui_btn_clicked), copy, NULL, 0);
     shim_gtk_box_pack_start(GTK_BOX(shimgui_box), btn, FALSE, FALSE, 0);
-    gtk_widget_show_all(shimgui_win);
+    shim_gtk_widget_show_all(shimgui_win);
     return val_nil();
 }
 
 static Value native_shimgui_entry(int argc, Value *args) {
-    if (!shimgui_box) return val_error("no window");
+    if (!shimgui_box) return val_error_code("no window", ERR_GUI);
     const char *ph = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "";
     GtkWidget *entry = shim_gtk_entry_new();
     shim_gtk_entry_set_placeholder_text(GTK_ENTRY(entry), ph);
+    if (shimgui_entry_count < SHIMGUI_MAX_ENTRIES) shimgui_entries[shimgui_entry_count++] = entry;
     shim_gtk_box_pack_start(GTK_BOX(shimgui_box), entry, FALSE, FALSE, 0);
     shim_gtk_widget_show_all(shimgui_win);
     return val_nil();
@@ -893,17 +959,50 @@ static Value native_shimgui_entry(int argc, Value *args) {
 
 static Value native_shimgui_run(int argc, Value *args) {
     (void)argc; (void)args;
-    if (!shimgui_win) return val_error("no window");
+    if (!shimgui_win) return val_error_code("no window", ERR_GUI);
     shim_gtk_main();
-    shimgui_win = NULL; shimgui_box = NULL;
+    // snapshot entry text before tearing down: after run returns the
+    // widgets are gone, but scripts can still read what was typed
+    shimgui_entry_snap_n = 0;
+    if (shim_gtk_entry_get_text) {
+        for (int i = 0; i < shimgui_entry_count && i < SHIMGUI_MAX_ENTRIES; i++) {
+            const char *t = shim_gtk_entry_get_text(GTK_ENTRY(shimgui_entries[i]));
+            strncpy(shimgui_entry_snap[i], t ? t : "", sizeof(shimgui_entry_snap[i])-1);
+            shimgui_entry_snap[i][sizeof(shimgui_entry_snap[i])-1] = '\0';
+            shimgui_entry_snap_n++;
+        }
+    }
+    shimgui_win = NULL; shimgui_box = NULL; shimgui_entry_count = 0;
     return val_nil();
 }
+
+static Value native_shimgui_entry_text(int argc, Value *args) {
+    int idx = (argc > 0 && args[0].type == VAL_NUMBER) ? (int)args[0].as.number : 0;
+    if (idx < 0) return val_string("");
+    // live window: read the widget; after run: read the snapshot
+    if (shimgui_win && shim_gtk_entry_get_text) {
+        if (idx < shimgui_entry_count) {
+            const char *t = shim_gtk_entry_get_text(GTK_ENTRY(shimgui_entries[idx]));
+            return val_string(t ? t : "");
+        }
+        return val_string("");
+    }
+    if (idx < shimgui_entry_snap_n) return val_string(shimgui_entry_snap[idx]);
+    return val_string("");
+}
+
+static Value native_shimgui_last_click(int argc, Value *args) {
+    (void)argc; (void)args;
+    return val_string(shimgui_last_click);
+}
 #else
-static Value native_shimgui_window(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available in this build"); }
-static Value native_shimgui_label(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
-static Value native_shimgui_button(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
-static Value native_shimgui_entry(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
-static Value native_shimgui_run(int argc, Value *args) { (void)argc;(void)args; return val_error("shimgui: GUI not available"); }
+static Value native_shimgui_window(int argc, Value *args) { (void)argc;(void)args; return val_error_code("shimgui: GUI not available in this build", ERR_GUI); }
+static Value native_shimgui_label(int argc, Value *args) { (void)argc;(void)args; return val_error_code("shimgui: GUI not available", ERR_GUI); }
+static Value native_shimgui_button(int argc, Value *args) { (void)argc;(void)args; return val_error_code("shimgui: GUI not available", ERR_GUI); }
+static Value native_shimgui_entry(int argc, Value *args) { (void)argc;(void)args; return val_error_code("shimgui: GUI not available", ERR_GUI); }
+static Value native_shimgui_run(int argc, Value *args) { (void)argc;(void)args; return val_error_code("shimgui: GUI not available", ERR_GUI); }
+static Value native_shimgui_entry_text(int argc, Value *args) { (void)argc;(void)args; return val_string(""); }
+static Value native_shimgui_last_click(int argc, Value *args) { (void)argc;(void)args; return val_string(""); }
 #endif
 
 // ── Ketiwe GUI: from-scratch X11 pixel toolkit (no GTK/WebKit) ───────
@@ -912,11 +1011,11 @@ static Value native_ketiwe_window(int argc, Value *args) {
     const char *title = (argc > 0 && args[0].type == VAL_STRING) ? args[0].as.string : "SB Window";
     int w = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 640;
     int h = (argc > 2 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 480;
-    return ketiwe_window(title, w, h) ? val_number(1) : val_error("ketiwe_window: cannot open display");
+    return ketiwe_window(title, w, h) ? val_number(1) : val_error_code("ketiwe_window: cannot open display", ERR_GUI);
 }
 
 static Value native_ketiwe_rect(int argc, Value *args) {
-    if (argc < 5) return val_error("ketiwe_rect needs 5 args: x, y, w, h, color");
+    if (argc < 5) return val_need_args("ketiwe_rect", "5 args: x, y, w, h, color");
     int x = (int)args[0].as.number;
     int y = (int)args[1].as.number;
     int w = (int)args[2].as.number;
@@ -934,7 +1033,7 @@ static Value native_ketiwe_rect(int argc, Value *args) {
 }
 
 static Value native_ketiwe_text(int argc, Value *args) {
-    if (argc < 3) return val_error("ketiwe_text needs 3 args: x, y, text");
+    if (argc < 3) return val_need_args("ketiwe_text", "3 args: x, y, text");
     int x = (int)args[0].as.number;
     int y = (int)args[1].as.number;
     const char *text = (args[2].type == VAL_STRING) ? args[2].as.string : "";
@@ -943,7 +1042,7 @@ static Value native_ketiwe_text(int argc, Value *args) {
 }
 
 static Value native_ketiwe_button(int argc, Value *args) {
-    if (argc < 5) return val_error("ketiwe_button needs 5 args: x, y, w, h, label");
+    if (argc < 5) return val_need_args("ketiwe_button", "5 args: x, y, w, h, label");
     int x = (int)args[0].as.number;
     int y = (int)args[1].as.number;
     int w = (int)args[2].as.number;
@@ -967,7 +1066,7 @@ static Value native_ketiwe_mouse_y(int argc, Value *args) { (void)argc;(void)arg
 static Value native_ketiwe_mouse_down(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_mouse_down()); }
 
 static Value native_ketiwe_circle(int argc, Value *args) {
-    if (argc < 4) return val_error("ketiwe_circle needs 4 args: cx, cy, r, color");
+    if (argc < 4) return val_need_args("ketiwe_circle", "4 args: cx, cy, r, color");
     int cx = (int)args[0].as.number;
     int cy = (int)args[1].as.number;
     int r = (int)args[2].as.number;
@@ -983,35 +1082,148 @@ static Value native_ketiwe_circle(int argc, Value *args) {
 }
 
 static Value native_ketiwe_input(int argc, Value *args) {
-    if (argc < 1) return val_error("ketiwe_input needs at least 1 arg: placeholder");
+    if (argc < 1) return val_need_args("ketiwe_input", "at least 1 arg: placeholder");
     const char *ph = (args[0].type == VAL_STRING) ? args[0].as.string : "";
     int x = (argc > 1 && args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
     int y = (argc > 2 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
     int w = (argc > 3 && args[3].type == VAL_NUMBER) ? (int)args[3].as.number : 200;
     int h = (argc > 4 && args[4].type == VAL_NUMBER) ? (int)args[4].as.number : 30;
+    // Stable slot per widget geometry: the input is redrawn every frame, so a
+    // round-robin slot would wipe typed text on each frame. Reuse the slot
+    // while the widget stays put; clear the buffer only on first claim.
     static char input_static[8][256];
-    static int input_idx = 0;
-    int idx = input_idx % 8;
-    input_idx++;
-    memset(input_static[idx], 0, 256);
+    static int slot_x[8], slot_y[8], slot_w[8], slot_h[8];
+    static int slot_used[8];
+    int idx = -1;
+    for (int i = 0; i < 8; i++) {
+        if (slot_used[i] && slot_x[i]==x && slot_y[i]==y && slot_w[i]==w && slot_h[i]==h) { idx = i; break; }
+    }
+    if (idx < 0) {
+        for (int i = 0; i < 8; i++) {
+            if (!slot_used[i]) {
+                slot_used[i]=1; slot_x[i]=x; slot_y[i]=y; slot_w[i]=w; slot_h[i]=h;
+                memset(input_static[i], 0, sizeof(input_static[i]));
+                idx = i; break;
+            }
+        }
+        if (idx < 0) idx = 7;
+    }
     ketiwe_input(x, y, w, h, input_static[idx], 256, ph);
     return val_string(input_static[idx]);
 }
 
 static Value native_ketiwe_key_press(int argc, Value *args) { (void)argc;(void)args; return val_number(ketiwe_key_press()); }
 
+// ── Math: trig + roots for graphics/physics (radians) ──────────────
+static Value native_sin(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sin", "1 arg: radians");
+    return val_number(sin(args[0].as.number));
+}
+
+static Value native_cos(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("cos", "1 arg: radians");
+    return val_number(cos(args[0].as.number));
+}
+
+static Value native_sqrt(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sqrt", "1 arg: number");
+    if (args[0].as.number < 0) return val_error_code("sqrt of negative number", ERR_BAD_ARGS);
+    return val_number(sqrt(args[0].as.number));
+}
+
+static Value native_pi(int argc, Value *args) {
+    (void)argc; (void)args;
+    return val_number(3.141592653589793);
+}
+
 static Value native_ketiwe_input_text(int argc, Value *args) {
     if (argc < 1 || args[0].type != VAL_NUMBER) return val_string("");
     return val_string(ketiwe_input_text((int)args[0].as.number));
 }
 
+static Value native_sprite_load(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("sprite_load", "1 arg: path to .ppm");
+    int id = ketiwe_sprite_load(args[0].as.string);
+    if (id < 0) return val_error_code("sprite_load: cannot load (missing file or bad PPM, max 512x512)", ERR_IO);
+    return val_number(id);
+}
+
+static Value native_sprite_draw(int argc, Value *args) {
+    if (argc < 3) return val_need_args("sprite_draw", "3 args: id, x, y");
+    int id = (args[0].type == VAL_NUMBER) ? (int)args[0].as.number : -1;
+    int x = (args[1].type == VAL_NUMBER) ? (int)args[1].as.number : 0;
+    int y = (args[2].type == VAL_NUMBER) ? (int)args[2].as.number : 0;
+    ketiwe_sprite_draw(id, x, y);
+    return val_nil();
+}
+
+static Value native_sprite_w(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sprite_w", "1 arg: id");
+    return val_number(ketiwe_sprite_w((int)args[0].as.number));
+}
+
+static Value native_sprite_h(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sprite_h", "1 arg: id");
+    return val_number(ketiwe_sprite_h((int)args[0].as.number));
+}
+
+static Value native_sprite_free(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("sprite_free", "1 arg: id");
+    ketiwe_sprite_free((int)args[0].as.number);
+    return val_nil();
+}
+
+static unsigned ketiwe_color_arg(Value *v) {
+    if (v->type == VAL_NUMBER) return (unsigned)v->as.number;
+    if (v->type == VAL_STRING) {
+        const char *s = v->as.string;
+        if (s[0] == '#') s++;
+        return (unsigned)strtol(s, NULL, 16);
+    }
+    return 0;
+}
+
+static Value native_ketiwe_line(int argc, Value *args) {
+    if (argc < 5) return val_need_args("ketiwe_line", "5 args: x1, y1, x2, y2, color");
+    int x1 = (int)args[0].as.number;
+    int y1 = (int)args[1].as.number;
+    int x2 = (int)args[2].as.number;
+    int y2 = (int)args[3].as.number;
+    ketiwe_line(x1, y1, x2, y2, ketiwe_color_arg(&args[4]));
+    return val_nil();
+}
+
+static Value native_ketiwe_rect_outline(int argc, Value *args) {
+    if (argc < 5) return val_need_args("ketiwe_rect_outline", "5 args: x, y, w, h, color");
+    int x = (int)args[0].as.number;
+    int y = (int)args[1].as.number;
+    int w = (int)args[2].as.number;
+    int h = (int)args[3].as.number;
+    ketiwe_rect_outline(x, y, w, h, ketiwe_color_arg(&args[4]));
+    return val_nil();
+}
+
+static Value native_ketiwe_clear(int argc, Value *args) {
+    if (argc < 1) return val_need_args("ketiwe_clear", "1 arg: color");
+    ketiwe_clear(ketiwe_color_arg(&args[0]));
+    return val_nil();
+}
+
 #else
-static Value native_ketiwe_window(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
-static Value native_ketiwe_rect(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
-static Value native_ketiwe_circle(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
-static Value native_ketiwe_text(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
-static Value native_ketiwe_button(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
-static Value native_ketiwe_input(int argc, Value *args) { (void)argc;(void)args; return val_error("ketiwe: GUI not available"); }
+static Value native_ketiwe_window(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_rect(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_circle(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_text(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_button(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_input(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_sprite_load(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
+static Value native_sprite_draw(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_sprite_w(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
+static Value native_sprite_h(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
+static Value native_sprite_free(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
+static Value native_ketiwe_line(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_rect_outline(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
+static Value native_ketiwe_clear(int argc, Value *args) { (void)argc;(void)args; return val_error_code("ketiwe: GUI not available", ERR_GUI); }
 static Value native_ketiwe_poll(int argc, Value *args) { (void)argc;(void)args; return val_number(1); }
 static Value native_ketiwe_flip(int argc, Value *args) { (void)argc;(void)args; return val_nil(); }
 static Value native_ketiwe_mouse_x(int argc, Value *args) { (void)argc;(void)args; return val_number(-1); }
@@ -1024,6 +1236,46 @@ static Value native_ketiwe_input_text(int argc, Value *args) { (void)argc;(void)
 static Value native_type_of(int argc, Value *args) {
     if (argc < 1) return val_string("nothing");
     return val_string(val_type_name(&args[0]));
+}
+
+// ── Errors without hardcoded strings ─────────────────────────────
+// Every error value carries a stable numeric code; SB code branches on
+// `err_name with err_code with e` instead of matching message text.
+static const char *sb_err_name(int code) {
+    switch (code) {
+        case ERR_NONE: return "none";
+        case ERR_TYPE_MISMATCH: return "type_mismatch";
+        case ERR_DIV_ZERO: return "div_zero";
+        case ERR_OUT_OF_BOUNDS: return "out_of_bounds";
+        case ERR_NOT_FOUND: return "not_found";
+        case ERR_BAD_ARGS: return "bad_args";
+        case ERR_GUI: return "gui";
+        case ERR_IO: return "io";
+        case ERR_AUDIO: return "audio";
+        default: return "runtime";
+    }
+}
+
+// single source for "<name> needs <want>" argument errors
+static Value val_need_args(const char *name, const char *want) {
+    char msg[256];
+    snprintf(msg, sizeof(msg), "%s needs %s", name, want);
+    return val_error_code(msg, ERR_BAD_ARGS);
+}
+
+static Value native_is_error(int argc, Value *args) {
+    if (argc < 1) return val_bool(0);
+    return val_bool(args[0].type == VAL_ERROR);
+}
+
+static Value native_err_code(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_ERROR) return val_number(ERR_NONE);
+    return val_number(args[0].as.error.code);
+}
+
+static Value native_err_name(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_string("runtime");
+    return val_string(sb_err_name((int)args[0].as.number));
 }
 
 static Value native_to_number(int argc, Value *args) {
@@ -1090,15 +1342,15 @@ static Value native_serve(int argc, Value *args) {
 #else
 #define sb_close close
 #endif
-    if (argc < 2) return val_error("serve needs a port and a handler function");
-    if (args[0].type != VAL_NUMBER) return val_error("port must be a number");
+    if (argc < 2) return val_need_args("serve", "a port and a handler function");
+    if (args[0].type != VAL_NUMBER) return val_error_code("port must be a number", ERR_BAD_ARGS);
     if (args[1].type != VAL_FUNCTION && args[1].type != VAL_NATIVE)
-        return val_error("handler must be a function");
+        return val_error_code("handler must be a function", ERR_BAD_ARGS);
     int port = (int)args[0].as.number;
     Value handler = val_copy(args[1]);
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) return val_error("cannot create socket");
+    if (server_fd < 0) return val_error_code("cannot create socket", ERR_IO);
 #ifdef _WIN32
     BOOL opt = TRUE;
 #else
@@ -1112,9 +1364,9 @@ static Value native_serve(int argc, Value *args) {
     addr.sin_port = htons((unsigned short)port);
     if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         sb_close(server_fd);
-        return val_error("cannot bind port");
+        return val_error_code("cannot bind port", ERR_IO);
     }
-    if (listen(server_fd, 16) < 0) { sb_close(server_fd); return val_error("listen failed"); }
+    if (listen(server_fd, 16) < 0) { sb_close(server_fd); return val_error_code("listen failed", ERR_IO); }
     printf("serving on http://localhost:%d\n", port);
 
     while (1) {
@@ -1261,7 +1513,7 @@ static Value json_parse_value(const char *s, int *i) {
     return val_nil();
 }
 static Value native_parse_json(int argc, Value *args) {
-    if (argc<1 || args[0].type!=VAL_STRING) return val_error("parse_json needs a string");
+    if (argc<1 || args[0].type!=VAL_STRING) return val_need_args("parse_json", "a string");
     int pos=0; Value v = json_parse_value(args[0].as.string,&pos);
     return v;
 }
@@ -1313,9 +1565,9 @@ static Value native_to_json(int argc, Value *args) {
     Value v=val_string(buf); free(buf); return v;
 }
 static Value native_read_csv(int argc, Value *args) {
-    if (argc<1 || args[0].type!=VAL_STRING) return val_error("read_csv needs a filename");
+    if (argc<1 || args[0].type!=VAL_STRING) return val_need_args("read_csv", "a filename");
     char *content = read_file_cstr(args[0].as.string);
-    if (!content) return val_error("cannot read csv");
+    if (!content) return val_error_code("cannot read csv", ERR_IO);
     Value rows = val_array();
     char *line = strtok(content,"\n");
     while(line) {
@@ -1472,7 +1724,7 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                 char msg[192];
                 snprintf(msg, sizeof(msg),
                     "cannot do math on non-numbers (%s %s %s)",
-                    val_type_name(&left), op==TOKEN_PLUS?"plus":op==TOKEN_MINUS?"minus":op==TOKEN_STAR?"times":op==TOKEN_SLASH?"divided by":op==TOKEN_LESS?"is less than":op==TOKEN_GREATER?"is greater than":"?", val_type_name(&right));
+                    val_type_name(&left), op==TOKEN_PLUS?"plus":op==TOKEN_MINUS?"minus":op==TOKEN_STAR?"times":op==TOKEN_SLASH?"divided by":op==TOKEN_LESS?"is less than":op==TOKEN_GREATER?"is greater than":op==TOKEN_LESSEQ?"<=":op==TOKEN_GREATEREQ?">=":op==TOKEN_EQUAL?"is":op==TOKEN_NOTEQ?"is not":op==TOKEN_MOD?"mod":op==TOKEN_INTDIV?"divided evenly by":"?", val_type_name(&right));
                 interp_error_code(interp, node->line, ERR_TYPE_MISMATCH, msg);
                 return val_nil();
             }
@@ -1497,6 +1749,8 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                 }
                 case TOKEN_LESS:    return val_bool(a < b);
                 case TOKEN_GREATER: return val_bool(a > b);
+                case TOKEN_LESSEQ:  return val_bool(a <= b);
+                case TOKEN_GREATEREQ: return val_bool(a >= b);
                 default:
                     interp_error(interp, node->line, "unknown operator");
                     return val_nil();
@@ -2113,6 +2367,9 @@ void interp_init(Interpreter *interp) {
     g_interp_for_http = interp;
 
     env_set(interp->global, "type_of",    val_native(native_type_of,    "type_of"));
+    env_set(interp->global, "is_error",   val_native(native_is_error,   "is_error"));
+    env_set(interp->global, "err_code",   val_native(native_err_code,   "err_code"));
+    env_set(interp->global, "err_name",   val_native(native_err_name,   "err_name"));
     env_set(interp->global, "to_number",  val_native(native_to_number,  "to_number"));
     env_set(interp->global, "to_string",  val_native(native_to_string,  "to_string"));
     env_set(interp->global, "input",      val_native(native_input,      "input"));
@@ -2132,6 +2389,10 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "reverse",    val_native(native_reverse_str,"reverse"));
     env_set(interp->global, "sort",       val_native(native_sort_array, "sort"));
     env_set(interp->global, "has",        val_native(native_has,        "has"));
+    env_set(interp->global, "sin",        val_native(native_sin,        "sin"));
+    env_set(interp->global, "cos",        val_native(native_cos,        "cos"));
+    env_set(interp->global, "sqrt",       val_native(native_sqrt,       "sqrt"));
+    env_set(interp->global, "pi",         val_native(native_pi,         "pi"));
     env_set(interp->global, "fetch",      val_native(native_fetch,      "fetch"));
     env_set(interp->global, "window",     val_native(native_window,     "window"));
     env_set(interp->global, "shimgui_window", val_native(native_shimgui_window, "shimgui_window"));
@@ -2139,8 +2400,13 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "shimgui_button", val_native(native_shimgui_button, "shimgui_button"));
     env_set(interp->global, "shimgui_entry",  val_native(native_shimgui_entry,  "shimgui_entry"));
     env_set(interp->global, "shimgui_run",    val_native(native_shimgui_run,    "shimgui_run"));
+    env_set(interp->global, "shimgui_entry_text", val_native(native_shimgui_entry_text, "shimgui_entry_text"));
+    env_set(interp->global, "shimgui_last_click", val_native(native_shimgui_last_click, "shimgui_last_click"));
     env_set(interp->global, "ketiwe_window",     val_native(native_ketiwe_window,     "ketiwe_window"));
     env_set(interp->global, "ketiwe_rect",       val_native(native_ketiwe_rect,       "ketiwe_rect"));
+    env_set(interp->global, "ketiwe_rect_outline", val_native(native_ketiwe_rect_outline, "ketiwe_rect_outline"));
+    env_set(interp->global, "ketiwe_line",       val_native(native_ketiwe_line,       "ketiwe_line"));
+    env_set(interp->global, "ketiwe_clear",      val_native(native_ketiwe_clear,      "ketiwe_clear"));
     env_set(interp->global, "ketiwe_text",       val_native(native_ketiwe_text,       "ketiwe_text"));
     env_set(interp->global, "ketiwe_button",     val_native(native_ketiwe_button,     "ketiwe_button"));
     env_set(interp->global, "ketiwe_poll",       val_native(native_ketiwe_poll,       "ketiwe_poll"));
@@ -2157,6 +2423,14 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "append_file",val_native(native_append_file,"append_file"));
     env_set(interp->global, "file_exists",val_native(native_file_exists,"file_exists"));
     env_set(interp->global, "play",       val_native(native_play,       "play"));
+    env_set(interp->global, "play_bg",    val_native(native_play_bg,    "play_bg"));
+    env_set(interp->global, "time_ms",    val_native(native_time_ms,    "time_ms"));
+    env_set(interp->global, "sleep_ms",   val_native(native_sleep_ms,   "sleep_ms"));
+    env_set(interp->global, "sprite_load",val_native(native_sprite_load,"sprite_load"));
+    env_set(interp->global, "sprite_draw",val_native(native_sprite_draw,"sprite_draw"));
+    env_set(interp->global, "sprite_w",   val_native(native_sprite_w,   "sprite_w"));
+    env_set(interp->global, "sprite_h",   val_native(native_sprite_h,   "sprite_h"));
+    env_set(interp->global, "sprite_free",val_native(native_sprite_free,"sprite_free"));
     env_set(interp->global, "run",        val_native(native_run_cmd,    "run"));
     env_set(interp->global, "map",        val_native(native_make_map,   "map"));
     env_set(interp->global, "keys",       val_native(native_keys,       "keys"));

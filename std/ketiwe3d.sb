@@ -1,0 +1,384 @@
+SB
+## ketiwe3d — software 3D wireframe on Ketiwe, pure SB
+## Points are maps with "x" and "y" and "z". Angles are radians.
+## Needs sin, cos, sqrt natives plus ketiwe_line.
+
+define v3 with x and y and z as
+  give back map with "x" and x and "y" and y and "z" and z.
+end.
+
+define v3_add with a and b as
+  set nx to a["x"] plus b["x"].
+  set ny to a["y"] plus b["y"].
+  set nz to a["z"] plus b["z"].
+  give back map with "x" and nx and "y" and ny and "z" and nz.
+end.
+
+define v3_sub with a and b as
+  set nx to a["x"] minus b["x"].
+  set ny to a["y"] minus b["y"].
+  set nz to a["z"] minus b["z"].
+  give back map with "x" and nx and "y" and ny and "z" and nz.
+end.
+
+define v3_scale with v and s as
+  set nx to v["x"] times s.
+  set ny to v["y"] times s.
+  set nz to v["z"] times s.
+  give back map with "x" and nx and "y" and ny and "z" and nz.
+end.
+
+define v3_len with v as
+  set q to v["x"] times v["x"] plus v["y"] times v["y"] plus v["z"] times v["z"].
+  give back sqrt with q.
+end.
+
+define rot_x with v and ang as
+  set c to cos with ang.
+  set s to sin with ang.
+  set y to v["y"].
+  set z to v["z"].
+  set ny to y times c minus z times s.
+  set nz to y times s plus z times c.
+  give back map with "x" and v["x"] and "y" and ny and "z" and nz.
+end.
+
+define rot_y with v and ang as
+  set c to cos with ang.
+  set s to sin with ang.
+  set x to v["x"].
+  set z to v["z"].
+  set nx to x times c plus z times s.
+  set nz to z times c minus x times s.
+  give back map with "x" and nx and "y" and v["y"] and "z" and nz.
+end.
+
+define rot_z with v and ang as
+  set c to cos with ang.
+  set s to sin with ang.
+  set x to v["x"].
+  set y to v["y"].
+  set nx to x times c minus y times s.
+  set ny to x times s plus y times c.
+  give back map with "x" and nx and "y" and ny and "z" and v["z"].
+end.
+
+define project with v and fl and cx and cy as
+  set denom to fl plus v["z"].
+  if denom is 0 then
+    set denom to 0.001.
+  end
+  set scale to fl divided by denom.
+  set sx to cx plus v["x"] times scale.
+  set sy to cy plus v["y"] times scale.
+  give back map with "x" and sx and "y" and sy.
+end.
+
+define cube_verts with s as
+  set n to 0 minus s.
+  set out to list with.
+  set v0 to v3 with n and n and n.
+  add_to with out and v0.
+  set v1 to v3 with s and n and n.
+  add_to with out and v1.
+  set v2 to v3 with s and s and n.
+  add_to with out and v2.
+  set v3b to v3 with n and s and n.
+  add_to with out and v3b.
+  set v4 to v3 with n and n and s.
+  add_to with out and v4.
+  set v5 to v3 with s and n and s.
+  add_to with out and v5.
+  set v6 to v3 with s and s and s.
+  add_to with out and v6.
+  set v7 to v3 with n and s and s.
+  add_to with out and v7.
+  give back out.
+end.
+
+define cube_edges as
+  set e01 to list with 0 and 1.
+  set e12 to list with 1 and 2.
+  set e23 to list with 2 and 3.
+  set e30 to list with 3 and 0.
+  set e45 to list with 4 and 5.
+  set e56 to list with 5 and 6.
+  set e67 to list with 6 and 7.
+  set e74 to list with 7 and 4.
+  set e04 to list with 0 and 4.
+  set e15 to list with 1 and 5.
+  set e26 to list with 2 and 6.
+  set e37 to list with 3 and 7.
+  give back list with e01 and e12 and e23 and e30 and e45 and e56 and e67 and e74 and e04 and e15 and e26 and e37.
+end.
+
+define draw_wire with verts and edges and fl and cx and cy and color as
+  set n to length with edges.
+  count i from 0 to n minus 1 then
+    set e to item with i and edges.
+    set a to item with 0 and e.
+    set b to item with 1 and e.
+    set va to item with a and verts.
+    set vb to item with b and verts.
+    set pa to project with va and fl and cx and cy.
+    set pb to project with vb and fl and cx and cy.
+    ketiwe_line(pa["x"], pa["y"], pb["x"], pb["y"], color).
+  end
+  give back n.
+end.
+
+define v3_dot with a and b as
+  set d to a["x"] times b["x"] plus a["y"] times b["y"] plus a["z"] times b["z"].
+  give back d.
+end.
+
+define v3_cross with a and b as
+  set cx to a["y"] times b["z"] minus a["z"] times b["y"].
+  set cy to a["z"] times b["x"] minus a["x"] times b["z"].
+  set cz to a["x"] times b["y"] minus a["y"] times b["x"].
+  give back map with "x" and cx and "y" and cy and "z" and cz.
+end.
+
+define v3_norm with v as
+  set l to v3_len with v.
+  if l is 0 then
+    give back map with "x" and 0 and "y" and 0 and "z" and 0.
+  end
+  give back v3_scale with v and 1 divided by l.
+end.
+
+define tri_normal with a and b and c as
+  set e1 to v3_sub with b and a.
+  set e2 to v3_sub with c and a.
+  set cr to v3_cross with e1 and e2.
+  give back v3_norm with cr.
+end.
+
+define shade with facing as
+  if facing is greater than 0.6 then
+    give back "#e9e4ff".
+  end
+  if facing is greater than 0.2 then
+    give back "#a78bfa".
+  end
+  if facing is greater than minus 0.2 then
+    give back "#7c5ce0".
+  end
+  if facing is greater than minus 0.6 then
+    give back "#4c2f8f".
+  end
+  give back "#2a1b4e".
+end.
+
+define sort_idx_by_depth with depths as
+  set n to length with depths.
+  set order to list with.
+  count i from 0 to n minus 1 then
+    add_to with order and i.
+  end
+  count i from 0 to n minus 1 then
+    count j from 0 to n minus 2 minus i then
+      set ja to item with j and order.
+      set jb to item with j plus 1 and order.
+      set da to item with ja and depths.
+      set db to item with jb and depths.
+      if da is less than db then
+        set order[j] to jb.
+        set order[j plus 1] to ja.
+      end
+    end
+  end
+  give back order.
+end.
+
+define fill_flat_bottom with x0 and y0 and x1 and y1 and xm and color as
+  set rows to y1 minus y0.
+  set n to 0.
+  while n is less than rows plus 1 then
+    set t to 0.
+    if rows is greater than 0 then
+      set t to n divided by rows.
+    end
+    set xa to x0 plus (x1 minus x0) times t.
+    set xb to x0 plus (xm minus x0) times t.
+    set y to y0 plus n.
+    ketiwe_line(xa, y, xb, y, color).
+    set n to n plus 1.
+  end
+  give back rows plus 1.
+end.
+
+define fill_flat_top with xa and ya and xb and x2 and y2 and color as
+  set rows to y2 minus ya.
+  set n to 0.
+  while n is less than rows plus 1 then
+    set t to 0.
+    if rows is greater than 0 then
+      set t to n divided by rows.
+    end
+    set xleft to xa plus (x2 minus xa) times t.
+    set xright to xb plus (x2 minus xb) times t.
+    set y to ya plus n.
+    ketiwe_line(xleft, y, xright, y, color).
+    set n to n plus 1.
+  end
+  give back rows plus 1.
+end.
+
+define fill_tri with ax and ay and bx and by and cx and cy and color as
+  set x0 to ax.
+  set y0 to ay.
+  set x1 to bx.
+  set y1 to by.
+  set x2 to cx.
+  set y2 to cy.
+  if y1 is less than y0 then
+    set tx to x0.
+    set ty to y0.
+    set x0 to x1.
+    set y0 to y1.
+    set x1 to tx.
+    set y1 to ty.
+  end
+  if y2 is less than y0 then
+    set tx to x0.
+    set ty to y0.
+    set x0 to x2.
+    set y0 to y2.
+    set x2 to tx.
+    set y2 to ty.
+  end
+  if y2 is less than y1 then
+    set tx to x1.
+    set ty to y1.
+    set x1 to x2.
+    set y1 to y2.
+    set x2 to tx.
+    set y2 to ty.
+  end
+  set dy to y2 minus y0.
+  if dy is 0 then
+    ketiwe_line(x0, y0, x1, y1, color).
+    ketiwe_line(x1, y1, x2, y2, color).
+    give back 2.
+  end
+  set t to (y1 minus y0) divided by dy.
+  set xm to x0 plus (x2 minus x0) times t.
+  set r1 to fill_flat_bottom with x0 and y0 and x1 and y1 and xm and color.
+  set r2 to fill_flat_top with x1 and y1 and xm and x2 and y2 and color.
+  give back r1 plus r2.
+end.
+
+define cube_faces as
+  set f0 to list with 0 and 2 and 1.
+  set f1 to list with 0 and 3 and 2.
+  set f2 to list with 4 and 5 and 6.
+  set f3 to list with 4 and 6 and 7.
+  set f4 to list with 0 and 1 and 5.
+  set f5 to list with 0 and 5 and 4.
+  set f6 to list with 3 and 7 and 6.
+  set f7 to list with 3 and 6 and 2.
+  set f8 to list with 0 and 7 and 3.
+  set f9 to list with 0 and 4 and 7.
+  set f10 to list with 1 and 2 and 6.
+  set f11 to list with 1 and 6 and 5.
+  give back list with f0 and f1 and f2 and f3 and f4 and f5 and f6 and f7 and f8 and f9 and f10 and f11.
+end.
+
+define draw_solid with verts and faces and fl and cx and cy as
+  set pp to list with.
+  loop v through verts then
+    set q to project with v and fl and cx and cy.
+    add_to with pp and q.
+  end
+  set nf to length with faces.
+  set depths to list with.
+  set norms to list with.
+  count i from 0 to nf minus 1 then
+    set f to item with i and faces.
+    set ia to item with 0 and f.
+    set ib to item with 1 and f.
+    set ic to item with 2 and f.
+    set va to item with ia and verts.
+    set vb to item with ib and verts.
+    set vc to item with ic and verts.
+    set dep to (va["z"] plus vb["z"] plus vc["z"]) divided by 3.
+    add_to with depths and dep.
+    set tn to tri_normal with va and vb and vc.
+    add_to with norms and tn.
+  end
+  set order to sort_idx_by_depth with depths.
+  count k from 0 to nf minus 1 then
+    set fi to item with k and order.
+    set f to item with fi and faces.
+    set ia to item with 0 and f.
+    set ib to item with 1 and f.
+    set ic to item with 2 and f.
+    set pa to item with ia and pp.
+    set pb to item with ib and pp.
+    set pc to item with ic and pp.
+    set tn to item with fi and norms.
+    set facing to 0 minus tn["z"].
+    set col to shade with facing.
+    set r to fill_tri with pa["x"] and pa["y"] and pb["x"] and pb["y"] and pc["x"] and pc["y"] and col.
+  end
+  give back nf.
+end.
+
+define sphere with r and lat and lon as
+  set verts to list with.
+  set p to pi with.
+  count i from 0 to lat then
+    set theta to i times p divided by lat.
+    set ring to r times sin with theta.
+    set y to r times cos with theta.
+    count j from 0 to lon minus 1 then
+      set phi to j times 2 times p divided by lon.
+      set x to ring times cos with phi.
+      set z to ring times sin with phi.
+      set v to v3 with x and y and z.
+      add_to with verts and v.
+    end
+  end
+  set edges to list with.
+  count i from 0 to lat then
+    count j from 0 to lon minus 1 then
+      set j2 to (j plus 1) mod lon.
+      set a to i times lon plus j.
+      set b to i times lon plus j2.
+      add_to with edges and list with a and b.
+      if i is less than lat then
+        set c to (i plus 1) times lon plus j.
+        add_to with edges and list with a and c.
+      end
+    end
+  end
+  give back map with "verts" and verts and "edges" and edges.
+end.
+
+define grid_lines with n and step and y as
+  set verts to list with.
+  set edges to list with.
+  set ext to n times step.
+  set vi to 0.
+  count i from 0 to n times 2 then
+    set k to i minus n.
+    set c to k times step.
+    set n1 to 0 minus ext.
+    set p1 to v3 with n1 and y and c.
+    set n2 to 0 plus ext.
+    set p2 to v3 with n2 and y and c.
+    add_to with verts and p1.
+    add_to with verts and p2.
+    set e1 to list with vi and vi plus 1.
+    add_to with edges and e1.
+    set q1 to v3 with c and y and n1.
+    set q2 to v3 with c and y and n2.
+    add_to with verts and q1.
+    add_to with verts and q2.
+    set e2 to list with vi plus 2 and vi plus 3.
+    add_to with edges and e2.
+    set vi to vi plus 4.
+  end
+  give back map with "verts" and verts and "edges" and edges.
+end.

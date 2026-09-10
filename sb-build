@@ -22,9 +22,10 @@ gcc -std=c11 -Wall -Wextra $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS -DSB_STD_DIR=
     "$SRC/ast.c" \
     "$SRC/value.c" \
     "$SRC/parser.c" \
+    "$SRC/ketiwe.c" \
     "$SRC/interpreter.c" \
     "$SRC/main.c" \
-    $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $READLINE_LIBS -lm
+    $GTK_LIBS $WEBKIT_LIBS $CURL_LIBS $READLINE_LIBS -lX11 -lm
 
 echo "Done. Binary at $BUILD/sb"
 

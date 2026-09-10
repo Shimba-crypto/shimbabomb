@@ -1,0 +1,62 @@
+SB
+pls bring ketiwe3d.
+
+assert sin with 0 is 0.
+assert cos with 0 is 1.
+assert sqrt with 25 is 5.
+set v to v3 with 1 and 2 and 3.
+assert v["x"] is 1.
+assert v["y"] is 2.
+assert v["z"] is 3.
+set a to v3 with 10 and 20 and 30.
+set w to v3_add with v and a.
+assert w["x"] is 11.
+assert w["y"] is 22.
+assert w["z"] is 33.
+set d to v3_sub with a and v.
+assert d["x"] is 9.
+set sc to v3_scale with v and 3.
+assert sc["y"] is 6.
+set t345 to v3 with 3 and 4 and 0.
+assert v3_len with t345 is 5.
+set unit to v3 with 1 and 0 and 0.
+set r to rot_z with unit and 0.
+assert r["x"] is 1.
+assert r["y"] is 0.
+set org to v3 with 0 and 0 and 0.
+set p to project with org and 300 and 320 and 240.
+assert p["x"] is 320.
+assert p["y"] is 240.
+set vs to cube_verts with 10.
+assert length with vs is 8.
+set es to cube_edges with.
+assert length with es is 12.
+set first to item with 0 and vs.
+assert first["x"] is minus 10.
+set ex to v3 with 1 and 0 and 0.
+set ey to v3 with 0 and 1 and 0.
+assert v3_dot with ex and ey is 0.
+assert v3_dot with ex and ex is 1.
+set cr to v3_cross with ex and ey.
+assert cr["z"] is 1.
+set v300 to v3 with 3 and 0 and 0.
+set nv to v3_norm with v300.
+assert nv["x"] is 1.
+assert shade with 1 is "#e9e4ff".
+assert shade with minus 1 is "#2a1b4e".
+set dd to list with 5 and 1 and 9.
+assert sort_idx_by_depth with dd is list with 2 and 0 and 1.
+set fs to cube_faces with.
+assert length with fs is 12.
+set sp to sphere with 10 and 4 and 6.
+set sv to sp["verts"].
+set se to sp["edges"].
+assert length with sv is 30.
+assert length with se is 54.
+set gr to grid_lines with 2 and 10 and 0.
+set gv to gr["verts"].
+set ge to gr["edges"].
+assert length with gv is 20.
+assert length with ge is 10.
+set vs60 to cube_verts with 60.
+assert draw_solid with vs60 and fs and 300 and 320 and 240 is 12.

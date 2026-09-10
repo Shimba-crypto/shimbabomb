@@ -7,7 +7,7 @@ ketiwe_window("Ketiwe Editor — free DOM", 900, 600)
 set placing to "none"
 set close to 0
 set elements to list()
-set dragging to -1
+set dragging to minus 1
 set offset_x to 0
 set offset_y to 0
 
@@ -20,7 +20,7 @@ set e1["w"] to 280
 set e1["h"] to 80
 set e1["color"] to "#7c5ce0"
 set e1["label"] to "Ketiwe raw X11 pixels"
-add_to(elements, e1)
+add_to with elements and e1
 
 set e2 to map()
 set e2["type"] to "rect"
@@ -30,7 +30,7 @@ set e2["w"] to 280
 set e2["h"] to 80
 set e2["color"] to "#a78bfa"
 set e2["label"] to "No GTK/WebKit"
-add_to(elements, e2)
+add_to with elements and e2
 
 set e3 to map()
 set e3["type"] to "button"
@@ -40,7 +40,7 @@ set e3["w"] to 120
 set e3["h"] to 45
 set e3["color"] to "#a78bfa"
 set e3["label"] to "Click Me"
-add_to(elements, e3)
+add_to with elements and e3
 
 set e4 to map()
 set e4["type"] to "button"
@@ -50,7 +50,7 @@ set e4["w"] to 120
 set e4["h"] to 45
 set e4["color"] to "#a78bfa"
 set e4["label"] to "Quit"
-add_to(elements, e4)
+add_to with elements and e4
 
 while close is 0 then
   ketiwe_rect(0, 0, 900, 600, "#12081f")
@@ -58,7 +58,7 @@ while close is 0 then
   ## title bar
   ketiwe_rect(0, 0, 900, 60, "#0d0a1a")
   ketiwe_text(20, 25, "Ketiwe Editor — click canvas to place, drag to move")
-  ketiwe_text(20, 45, "Mode: ${placing}  |  Elements: ${length(elements)}  |  Esc to quit")
+  ketiwe_text(20, 45, "Mode: ${placing}  |  Elements: ${length with elements}  |  Esc to quit")
 
   ## toolbar
   ketiwe_rect(0, 60, 900, 50, "#1a1025")
@@ -79,22 +79,22 @@ while close is 0 then
     set elements to list()
     set placing to "none"
     ## re-add defaults after clear so canvas not empty
-    add_to(elements, e1)
-    add_to(elements, e2)
+    add_to with elements and e1
+    add_to with elements and e2
   end
   set btn_save to ketiwe_button(440, 68, 80, 34, "Save")
   if btn_save is 1 then
     set out to "["
-    set last_idx to length(elements) - 1
+    set last_idx to (length with elements) minus 1
     count i from 0 to last_idx then
-      set el to item(elements, i)
-      set out to out + to_json(el)
-      if i < last_idx then
-        set out to out + ","
+      set el to item with i and elements
+      set out to out plus to_json with el
+      if i is less than last_idx then
+        set out to out plus ","
       end
     end
-    set out to out + "]"
-    write_file("ketiwe_layout.json", out)
+    set out to out plus "]"
+    write_file with "ketiwe_layout.json" and out
     set placing to "saved!"
   end
 
@@ -103,8 +103,8 @@ while close is 0 then
   ketiwe_rect(12, 117, 876, 466, "#12081f")
 
   ## draw elements
-  count idx from 0 to length(elements) - 1 then
-    set el to item(elements, idx)
+  count idx from 0 to (length with elements) minus 1 then
+    set el to item with idx and elements
     set ex to el["x"]
     set ey to el["y"]
     set ew to el["w"]
@@ -115,7 +115,7 @@ while close is 0 then
 
     if etype is "rect" then
       ketiwe_rect(ex, ey, ew, eh, ecol)
-      ketiwe_text(ex + 10, ey + 20, elab)
+      ketiwe_text(ex plus 10, ey plus 20, elab)
     end
     if etype is "button" then
       set pr to ketiwe_button(ex, ey, ew, eh, elab)
@@ -137,17 +137,17 @@ while close is 0 then
   set md to ketiwe_mouse_down()
 
   if md is 1 then
-    if my > 115 then
+    if my is greater than 115 then
       if placing is "rect" then
         set ne to map()
         set ne["type"] to "rect"
-        set ne["x"] to mx - 40
-        set ne["y"] to my - 20
+        set ne["x"] to mx minus 40
+        set ne["y"] to my minus 20
         set ne["w"] to 140
         set ne["h"] to 50
         set ne["color"] to "#7c5ce0"
         set ne["label"] to "New Rect"
-        add_to(elements, ne)
+        add_to with elements and ne
         set placing to "none"
       end
       if placing is "text" then
@@ -159,47 +159,57 @@ while close is 0 then
         set ne["h"] to 20
         set ne["color"] to "#f4f0ff"
         set ne["label"] to "Hello"
-        add_to(elements, ne)
+        add_to with elements and ne
         set placing to "none"
       end
       if placing is "button" then
         set ne to map()
         set ne["type"] to "button"
-        set ne["x"] to mx - 60
-        set ne["y"] to my - 15
+        set ne["x"] to mx minus 60
+        set ne["y"] to my minus 15
         set ne["w"] to 120
         set ne["h"] to 34
         set ne["color"] to "#a78bfa"
         set ne["label"] to "New Btn"
-        add_to(elements, ne)
+        add_to with elements and ne
         set placing to "none"
       end
       if placing is "none" then
         ## try to pick element to drag
-        count j from 0 to length(elements) - 1 then
-          set jel to item(elements, j)
+        count j from 0 to (length with elements) minus 1 then
+          set jel to item with j and elements
           set jx to jel["x"]
           set jy to jel["y"]
           set jw to jel["w"]
           set jh to jel["h"]
-          if mx >= jx and mx < jx + jw and my >= jy and my < jy + jh then
-            set dragging to j
-            set offset_x to mx - jx
-            set offset_y to my - jy
+          if mx is greater than jx or mx is jx then
+            if mx is less than jx plus jw then
+              if my is greater than jy or my is jy then
+                if my is less than jy plus jh then
+                  set dragging to j
+                  set offset_x to mx minus jx
+                  set offset_y to my minus jy
+                end
+              end
+            end
           end
         end
       end
     end
   end
 
-  if md is 0 and dragging >= 0 then
-    set dragging to -1
+  if md is 0 then
+    if dragging is greater than 0 or dragging is 0 then
+      set dragging to minus 1
+    end
   end
 
-  if dragging >= 0 and md is 1 then
-    set del to item(elements, dragging)
-    set del["x"] to mx - offset_x
-    set del["y"] to my - offset_y
+  if dragging is greater than 0 or dragging is 0 then
+    if md is 1 then
+      set del to item with dragging and elements
+      set del["x"] to mx minus offset_x
+      set del["y"] to my minus offset_y
+    end
   end
 
   ketiwe_flip()

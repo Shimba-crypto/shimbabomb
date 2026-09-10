@@ -1,0 +1,47 @@
+SB
+## Ketiwe Widgets demo — line, outline, clear plus std helpers
+## Uses new primitives: ketiwe_line, ketiwe_rect_outline, ketiwe_clear
+## Uses std/ketiwe helpers: row_xs, inside, clamp_num
+pls bring ketiwe.
+
+ketiwe_window("Ketiwe Widgets", 640, 400).
+
+set close to 0.
+set clicks to 0.
+set xs to row_xs with 20 and 140 and 20 and 3.
+
+while close is 0 then
+  ketiwe_clear("#12081f").
+  ketiwe_rect_outline(10, 10, 620, 380, "#7c5ce0").
+  ketiwe_line(10, 60, 630, 60, "#a78bfa").
+  ketiwe_circle(320, 200, 40, "#e879f9").
+  ketiwe_text(40, 50, "Lines, outlines, circles — click a box").
+  ketiwe_text(40, 80, "Click count: ${clicks}").
+
+  count i from 0 to 2 then
+    set bx to item with i and xs.
+    set hit to ketiwe_button(bx, 120, 140, 50, "Box").
+    if hit is 1 then
+      set clicks to clicks plus 1.
+    end
+  end
+
+  set mx to ketiwe_mouse_x().
+  set my to ketiwe_mouse_y().
+  set hov to inside with mx and my and 20 and 260 and 600 and 80.
+  if hov is 1 then
+    ketiwe_rect(20, 260, 600, 80, "#7c5ce0").
+    ketiwe_text(40, 300, "hovering the banner").
+  otherwise
+    ketiwe_rect_outline(20, 260, 600, 80, "#a78bfa").
+    ketiwe_text(40, 300, "hover here").
+  end
+
+  set clamped to clamp_num with mx and 0 and 500.
+  ketiwe_rect(clamped, 360, 60, 20, "#4ade80").
+
+  ketiwe_flip().
+  set close to ketiwe_poll().
+end
+
+say "Widgets demo closed. Clicked ${clicks} times.".

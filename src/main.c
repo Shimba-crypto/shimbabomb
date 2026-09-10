@@ -174,11 +174,11 @@ static int build_to(const char *src_path, const char *out_path) {
     if (pp) { fread(libs,1,sizeof(libs)-1,pp); pclose(pp); libs[strcspn(libs,"\r\n")]='\0'; }
     for (char *q=cflags;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
     for (char *q=libs;*q;q++) if(*q=='\n'||*q=='\r') *q=' ';
-    char simple[4096];
+    char simple[8192];
     snprintf(simple, sizeof(simple),
-        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c %s 2>&1",
+        "gcc -std=c11 -Wall -I%s/src %s -o %s %s %s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/ketiwe.c %s/src/interpreter.c %s -lX11 2>&1",
         SB_SRC_DIR, cflags, out_path, c_path,
-        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
+        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
         libs);
     int rc = system(simple);
     unlink(c_path);
@@ -373,7 +373,7 @@ static int handle_update(void) {
 }
 
 static void print_help(void) {
-    char ver[32] = "v1.11.0";
+    char ver[32] = "v1.17.0";
     char vpath[1024];
     FILE *vf = fopen("VERSION", "rb");
     if (!vf) {
@@ -480,16 +480,9 @@ static int handle_watch(void) {
     int use_inotify = (ifd >= 0);
     if (use_inotify) {
         // add watches recursively on dirs containing .sb files
-        char wd_names[64][1024];
-        int wd_map[64], wd_count = 0;
-        // helper: add dir + recurse
         void add_dir(const char *path, int depth) {
-            if (depth > 4 || wd_count >= 60) return;
-            int wd = inotify_add_watch(ifd, path, IN_MODIFY | IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
-            if (wd >= 0 && wd < 64) {
-                snprintf(wd_names[wd], sizeof(wd_names[0]), "%s", path);
-                wd_map[wd] = 1; if (wd >= wd_count) wd_count = wd + 1;
-            }
+            if (depth > 4) return;
+            inotify_add_watch(ifd, path, IN_MODIFY | IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
             DIR *sub = opendir(path);
             if (!sub) return;
             struct dirent *de;
@@ -622,6 +615,8 @@ static int handle_fmt(const char *path) {
         else if (strncmp(trim, "if ", 3)==0) opens = 1;
         else if (strncmp(trim, "count ", 6)==0) opens = 1;
         else if (strncmp(trim, "loop ", 5)==0) opens = 1;
+        else if (strncmp(trim, "while ", 6)==0) opens = 1;
+        else if (strncmp(trim, "match ", 6)==0) opens = 1;
         else if (strncmp(trim, "try", 3)==0) opens = 1;
         if (opens) indent++;
         else if (is_otherwise || is_catch) indent++;
@@ -1103,11 +1098,10 @@ static int handle_pack_exe(int argc, char **argv) {
         "x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall "
         "-DSB_NO_GUI -DSB_NO_CURL "
         "-I%s/src -o %s %s "
-        "%s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/interpreter.c "
+        "%s/src/lexer.c %s/src/ast.c %s/src/value.c %s/src/parser.c %s/src/ketiwe.c %s/src/interpreter.c "
         "-lws2_32 -static -lm 2>&1",
         SB_SRC_DIR, out, c_path,
-        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR,
-        "");
+        SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR, SB_SRC_DIR);
     int rc = system(cmd);
     unlink(c_path);
     if (rc == 0) {
@@ -1140,7 +1134,7 @@ static int handle_link(void) {
 
     const char *home = getenv("HOME");
     if (!home) { fprintf(stderr, "sb link: no HOME\n"); return 1; }
-    char libsroot[1024], libdir[1200], entrydst[1300];
+    char libsroot[1024], libdir[1200];
     snprintf(libsroot, sizeof(libsroot), "%s/.shimbabomb/libraries", home);
     snprintf(libdir, sizeof(libdir), "%s/%s", libsroot, name);
     ensure_dir(libsroot);
@@ -1216,8 +1210,16 @@ static int handle_publish(int argc, char **argv) {
 static int run_sb_file(const char *path, int *passed, int *failed) {
     printf("== %s ==\n", path);
     fflush(stdout);
-    char cmd[1200];
-    snprintf(cmd, sizeof(cmd), "SB_TEST_MODE=1 sb '%s' 2>&1", path);
+    // invoke THIS binary, not whatever `sb` happens to be on PATH
+    // (the installed one may be older than the build under test)
+    char self[1024] = {0};
+    const char *exe = "sb";
+#ifndef _WIN32
+    ssize_t n = readlink("/proc/self/exe", self, sizeof(self)-1);
+    if (n > 0) { self[n] = '\0'; exe = self; }
+#endif
+    char cmd[2300];
+    snprintf(cmd, sizeof(cmd), "SB_TEST_MODE=1 '%s' '%s' 2>&1", exe, path);
     int rc = system(cmd);
     (void)passed; (void)failed; // per-file counts come via output
     return WIFEXITED(rc) && WEXITSTATUS(rc)==0;

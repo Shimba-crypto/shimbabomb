@@ -55,7 +55,10 @@ Value val_class(ClassDef *class_def) {
     return v;
 }
 Value val_error(const char *message) {
-    Value v; v.type = VAL_ERROR; v.as.error.message = strdup(message); return v;
+    Value v; v.type = VAL_ERROR; v.as.error.message = strdup(message); v.as.error.code = 0; return v;
+}
+Value val_error_code(const char *message, int code) {
+    Value v; v.type = VAL_ERROR; v.as.error.message = strdup(message); v.as.error.code = code; return v;
 }
 
 void val_free(Value *v) {
@@ -144,7 +147,7 @@ void val_print(Value *v) {
 
 Value val_copy(Value v) {
     if (v.type == VAL_STRING) return val_string(v.as.string);
-    if (v.type == VAL_ERROR) return val_error(v.as.error.message);
+    if (v.type == VAL_ERROR) return val_error_code(v.as.error.message, v.as.error.code);
     if (v.type == VAL_ARRAY) {
         Value a = val_array();
         for (int i = 0; i < v.as.array.count; i++)

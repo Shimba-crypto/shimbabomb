@@ -1,0 +1,37 @@
+SB
+## Ketiwe text input demo — click a field, type, Tab or Return to leave it
+## Exercises stable per-widget input slots: text survives across frames
+pls bring ketiwe.
+
+ketiwe_window("Ketiwe Input", 640, 320).
+
+set close to 0.
+set done to 0.
+
+while close is 0 then
+  ketiwe_clear("#12081f").
+  ketiwe_text(20, 40, "Click a field and type. Tab or Return leaves the field.").
+  ketiwe_text(20, 70, "Esc quits.").
+
+  ketiwe_text(20, 110, "Name:").
+  set name to ketiwe_input("Your name", 20, 120, 300, 34).
+  ketiwe_text(20, 170, "City:").
+  set city to ketiwe_input("Your city", 20, 180, 300, 34).
+
+  ketiwe_text(340, 130, "Live: ${name}").
+  ketiwe_text(340, 190, "Live: ${city}").
+
+  set go to ketiwe_button(20, 230, 140, 44, "Greet").
+  if go is 1 then
+    set done to 1.
+  end
+  if done is 1 then
+    ketiwe_rect(200, 230, 420, 44, "#1a1025").
+    ketiwe_text(220, 258, "Hello ${name} from ${city}!").
+  end
+
+  ketiwe_flip().
+  set close to ketiwe_poll().
+end
+
+say "Input demo closed.".

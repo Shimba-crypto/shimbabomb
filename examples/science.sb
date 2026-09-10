@@ -32,7 +32,7 @@ say "A·B =".
 nob_show with nob_matmul with A and B.
 
 set wr1 to list with 0.3.
-set wr2 to list with -0.2.
+set wr2 to list with minus 0.2.
 set R to nob_rand with 3 and 3 and 123.
 say "rand(3x3, seed 123):".
 nob_show with R.
@@ -53,8 +53,8 @@ say "title_case: ".
 say n2b_title_case with "shimbomb makes science easy".
 say "caesar('attack at dawn', 5): ".
 say n2b_caesar with "attack at dawn" and 5.
-say "caesar back (-5): ".
-say n2b_caesar with "fyyfhp fy ifbs" and -5.
+say "caesar back (minus 5): ".
+say n2b_caesar with "fyyfhp fy ifbs" and minus 5.
 
 say "".
 say "========================================".

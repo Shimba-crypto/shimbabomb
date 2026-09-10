@@ -1,0 +1,50 @@
+SB
+## Ketiwe 3D solid demo — shaded cube plus wireframe sphere, Esc quits
+## Painter-sorted filled faces with fixed viewer light, pure SB rasterizer
+pls bring ketiwe.
+pls bring ketiwe3d.
+
+ketiwe_window("Ketiwe 3D Solid", 640, 480).
+
+set verts to cube_verts with 60.
+set faces to cube_faces with.
+set sp to sphere with 30 and 8 and 12.
+set sverts to sp["verts"].
+set sedges to sp["edges"].
+set ang to 0.
+set close to 0.
+
+while close is 0 then
+  ketiwe_clear("#12081f").
+  set ang to ang plus 0.02.
+  set rv to list with.
+  loop v through verts then
+    set r1 to rot_y with v and ang.
+    set off to v3 with 0 and 0 and 220.
+    set r2 to v3_add with r1 and off.
+    add_to with rv and r2.
+  end
+  draw_solid with rv and faces and 400 and 220 and 240.
+  set sv2 to list with.
+  loop v through sverts then
+    set r1 to rot_y with v and 0 minus ang.
+    set off2 to v3 with 0 and 0 and 220.
+    set r2 to v3_add with r1 and off2.
+    set q to project with r2 and 400 and 460 and 240.
+    add_to with sv2 and q.
+  end
+  set m to length with sedges.
+  count i from 0 to m minus 1 then
+    set e to item with i and sedges.
+    set a to item with 0 and e.
+    set b to item with 1 and e.
+    set pa to item with a and sv2.
+    set pb to item with b and sv2.
+    ketiwe_line(pa["x"], pa["y"], pb["x"], pb["y"], "#e879f9").
+  end
+  ketiwe_text(20, 30, "solid cube plus wire sphere — Esc quits").
+  ketiwe_flip().
+  set close to ketiwe_poll().
+end
+
+say "3D solid demo closed.".

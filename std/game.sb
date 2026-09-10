@@ -1,0 +1,67 @@
+SB
+# ============================================================
+# game.sb — ShimbaBomb game-engine helpers
+#   collision, fixed-timestep loop budgets, overlapping sfx
+#   Errors are coded values: branch on err_name, never on text.
+# ============================================================
+
+pls bring ketiwe.
+
+# ---------- collision (all give back 1 on hit, 0 on miss) ----------
+
+define hit_box with ax and ay and aw and ah and bx and by and bw and bh as
+    if ax is less than bx plus bw or ax is bx plus bw then
+        if bx is less than ax plus aw or bx is ax plus aw then
+            if ay is less than by plus bh or ay is by plus bh then
+                if by is less than ay plus ah or by is ay plus ah then
+                    give back 1.
+                end
+            end
+        end
+    end
+    give back 0.
+end.
+
+define hit_circle with ax and ay and ar and bx and by and br as
+    set dx to ax minus bx.
+    set dy to ay minus by.
+    set d2 to dx times dx plus dy times dy.
+    set rr to ar plus br.
+    set r2 to rr times rr.
+    if d2 is less than r2 or d2 is r2 then
+        give back 1.
+    end
+    give back 0.
+end.
+
+define hit_point with px and py and x and y and w and h as
+    give back inside with px and py and x and y and w and h.
+end.
+
+# ---------- fixed-timestep loop ----------
+
+define frame_sleep with t0 and budget as
+    set now to time_ms with.
+    set elapsed to now minus t0.
+    if elapsed is less than budget then
+        sleep_ms with budget minus elapsed.
+        set now to time_ms with.
+        set elapsed to now minus t0.
+    end
+    give back elapsed.
+end.
+
+define fps_of with frames and ms as
+    if ms is 0 then
+        give back 0.
+    end
+    give back frames times 1000 divided by ms.
+end.
+
+# ---------- overlapping sound ----------
+# each call spawns its own player so rapid calls mix in the OS mixer
+
+define sfx with name as
+    play_bg with name.
+    give back 1.
+end.

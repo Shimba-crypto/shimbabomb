@@ -33,6 +33,10 @@ typedef enum {
     ERR_DIV_ZERO,
     ERR_OUT_OF_BOUNDS,
     ERR_NOT_FOUND,
+    ERR_BAD_ARGS,
+    ERR_GUI,
+    ERR_IO,
+    ERR_AUDIO,
     ERR_RUNTIME
 } ErrorCode;
 

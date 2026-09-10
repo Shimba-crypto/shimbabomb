@@ -32,6 +32,17 @@ sb install <pkg>        # install to sb_modules/
 sb pack deb|rpm|exe     # package
 ```
 
+## v1.17.0
+
+- Comparisons work with symbols too: `< > <= >= == !=`.
+- `not` covers the whole comparison: `not a is less than b`.
+- Parens group boolean logic: `(a or b) and c`.
+- Errors carry codes. Use `is_error`, `err_code`, `err_name` instead of matching message text.
+- New builtins: `sin`, `cos`, `sqrt`, `pi`, `time_ms`, `sleep_ms`, `play_bg`.
+- Sprites: `sprite_load` reads a PPM file, `sprite_draw` blits it to a Ketiwe window.
+- New libs: `game` (collision, fixed-timestep loop, sfx), `ketiwe3d` (wireframe and solid 3D).
+- Ketiwe gained lines, outlines, and clear. ShimGUI gained tables, alerts, and lists.
+
 ## Syntax
 
 Every statement ends with `.` Files start with `SB`.
@@ -40,7 +51,7 @@ See `sb-ai-test/PROMPT_FOR_AI.md` and `~/.config/opencode/skills/shimbabomb/SKIL
 
 ## Std
 
-`std/` — maths, lists, strings, files, crypto, datetime, ui, shimgui, fp
+`std/` — maths, lists, strings, files, crypto, datetime, ui, shimgui, fp, game, ketiwe, ketiwe3d
 
 ## Docs
 

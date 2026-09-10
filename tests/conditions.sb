@@ -1,0 +1,17 @@
+SB
+# regression: symbolic comparisons, parenthesised boolean logic, not-precedence
+assert 1 < 2 is true.
+assert 2 > 1 is true.
+assert 2 <= 2 is true.
+assert 2 >= 3 is false.
+assert 5 == 5 is true.
+assert 5 != 6 is true.
+assert 5 = 5 is true.
+set a to 1.
+set b to 2.
+set c to 10.
+assert ((a is 1 or b is 99) and c is 10) is true.
+assert ((a is 99 or b is 99) and c is 10) is false.
+assert not a is less than 0 is true.
+assert not (a > b) is true.
+assert not a is b is true.

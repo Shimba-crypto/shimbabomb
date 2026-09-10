@@ -77,6 +77,7 @@ struct Value {
 
         struct {
             char *message;
+            int code;
         } error;
     } as;
 };
@@ -92,6 +93,7 @@ Value val_map(void);
 Value val_instance(ClassDef *class_def);
 Value val_class(ClassDef *class_def);
 Value val_error(const char *message);
+Value val_error_code(const char *message, int code);
 Value val_map_get(Value *m, const char *key);
 void val_map_set(Value *m, const char *key, Value v);
 int val_map_has(Value *m, const char *key);

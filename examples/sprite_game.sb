@@ -1,0 +1,58 @@
+SB
+## Sprite bounce demo — fixed 60fps budget, wall plus crate bounce
+## Run from the repo root so assets/ resolves.
+pls bring ketiwe.
+pls bring game.
+
+ketiwe_window("Sprite Bounce", 640, 480).
+
+set ball to sprite_load with "assets/ball.ppm".
+set crate to sprite_load with "assets/crate.ppm".
+set bw to sprite_w with ball.
+set bh to sprite_h with ball.
+set cx to 304.
+set cy to 224.
+set x to 100.
+set y to 100.
+set vx to 3.
+set vy to 2.
+set bounces to 0.
+set frames to 0.
+set t0 to time_ms with.
+set close to 0.
+
+while close is 0 then
+  set fstart to time_ms with.
+  set x to x plus vx.
+  set y to y plus vy.
+  set right to x plus bw.
+  set bottom to y plus bh.
+  if x is less than 0 or right is greater than 640 then
+    set vx to 0 minus vx.
+    set bounces to bounces plus 1.
+  end
+  if y is less than 0 or bottom is greater than 480 then
+    set vy to 0 minus vy.
+    set bounces to bounces plus 1.
+  end
+  set hit to hit_box with x and y and bw and bh and cx and cy and 32 and 32.
+  if hit is 1 then
+    set vx to 0 minus vx.
+    set vy to 0 minus vy.
+    set x to x plus vx.
+    set y to y plus vy.
+    set bounces to bounces plus 1.
+  end
+  ketiwe_clear("#12081f").
+  sprite_draw with crate and cx and cy.
+  sprite_draw with ball and x and y.
+  set frames to frames plus 1.
+  set now to time_ms with.
+  set fps to fps_of with frames and now minus t0.
+  ketiwe_text(16, 28, "fps: ${fps} bounces: ${bounces}").
+  ketiwe_flip().
+  frame_sleep with fstart and 16.
+  set close to ketiwe_poll().
+end
+
+say "Sprite demo closed.".

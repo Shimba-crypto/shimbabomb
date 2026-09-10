@@ -38,6 +38,7 @@ static char *parser_expect(Parser *p, TokenType type, const char *msg) {
 
 static AstNode *parse_statement(Parser *p);
 static AstNode *parse_expression(Parser *p);
+static AstNode *parse_condition(Parser *p);
 static AstNode *parse_block(Parser *p);
 static AstNode *parse_arg_expr(Parser *p);
 static AstNode *parse_postfix(Parser *p);
@@ -77,8 +78,12 @@ static int parse_params(Parser *p, char ***out) {
 static NodeList parse_call_args(Parser *p) {
     NodeList args = nodelist_create();
     if (parser_match(p, TOKEN_WITH)) {
+        // bare `with` (no args): ends the arg list when the call sits
+        // inside a larger expression, e.g. `(pi with) divided by 2`
         if (parser_check(p, TOKEN_DOT) || parser_check(p, TOKEN_END) ||
             parser_check(p, TOKEN_CATCH) || parser_check(p, TOKEN_OTHERWISE) ||
+            parser_check(p, TOKEN_RPAREN) || parser_check(p, TOKEN_RBRACKET) ||
+            parser_check(p, TOKEN_COMMA) || parser_check(p, TOKEN_THEN) ||
             parser_check(p, TOKEN_EOF)) {
             return args;
         }
@@ -173,7 +178,7 @@ static AstNode *parse_primary(Parser *p) {
     }
     if (parser_check(p, TOKEN_LPAREN)) {
         parser_advance(p);
-        AstNode *expr = parse_expression(p);
+        AstNode *expr = parse_condition(p);
         parser_match(p, TOKEN_RPAREN);
         return expr;
     }
@@ -343,6 +348,14 @@ static AstNode *parse_arg_expr(Parser *p) {
 static AstNode *parse_additive(Parser *p);
 
 static AstNode *parse_comparison(Parser *p) {
+    // leading 'not' negates the whole comparison, so
+    // `not a is less than b` means `not (a < b)`
+    if (parser_check(p, TOKEN_NOT)) {
+        int line = p->current.line;
+        parser_advance(p);
+        AstNode *inner = parse_comparison(p);
+        return node_unary(TOKEN_NOT, inner, line);
+    }
     AstNode *left = parse_term(p);
     if (parser_had_error(p)) return left;
 
@@ -353,6 +366,7 @@ static AstNode *parse_comparison(Parser *p) {
         return node_binary(left, TOKEN_NOTEQ, right, line);
     }
     if (parser_check(p, TOKEN_LESS) || parser_check(p, TOKEN_GREATER) ||
+        parser_check(p, TOKEN_LESSEQ) || parser_check(p, TOKEN_GREATEREQ) ||
         parser_check(p, TOKEN_EQUAL)) {
         TokenType op = p->current.type;
         int line = p->current.line;
@@ -410,27 +424,6 @@ static AstNode *parse_postfix(Parser *p) {
             continue;
         }
         if (parser_check(p, TOKEN_DOT)) {
-            // save state in case this is just a statement terminator
-            Lexer saved = p->lexer;
-            Token saved_tok = p->current;
-            int line = p->current.line;
-            parser_advance(p);
-            if (parser_check(p, TOKEN_IDENTIFIER)) {
-                // dot followed by identifier — property access
-                char *field = copy_token(p);
-                parser_advance(p);
-                if (parser_check(p, TOKEN_LPAREN)) {
-                    NodeList args = parse_call_args(p);
-                    expr = node_method_call(expr, field, args, line);
-                } else {
-                    expr = node_possessive(expr, field, line);
-                }
-                free(field);
-                continue;
-            }
-            // not property access — restore lexer to before the dot
-            p->lexer = saved;
-            p->current = saved_tok;
             break;
         }
         if (parser_check(p, TOKEN_LBRACKET)) {
@@ -447,7 +440,18 @@ static AstNode *parse_postfix(Parser *p) {
 }
 
 static AstNode *parse_condition(Parser *p) {
-    AstNode *left = parse_comparison(p);
+    // leading 'not' negates one comparison, so `not a and b`
+    // means `(not a) and b` while `not a is less than b`
+    // means `not (a < b)`
+    AstNode *left;
+    if (parser_check(p, TOKEN_NOT)) {
+        int line = p->current.line;
+        parser_advance(p);
+        AstNode *inner = parse_comparison(p);
+        left = node_unary(TOKEN_NOT, inner, line);
+    } else {
+        left = parse_comparison(p);
+    }
     for (;;) {
         if (parser_check(p, TOKEN_OR)) {
             int line = p->current.line;

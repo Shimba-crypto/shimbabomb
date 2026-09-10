@@ -4,8 +4,9 @@ SB
 
 shimgui_window with "ShimGUI Real" and 460 and 320.
 shimgui_label with "Hello — real GTK widgets, not HTML!".
-shimgui_label with "This window uses GtkLabel and GtkButton directly.".
-shimgui_button with "Click me — check terminal".
-shimgui_entry with "Type here...".
-shimgui_button with "Another button".
+shimgui_label with "Type below, press Greet, then close the window.".
+shimgui_entry with "Your name...".
+shimgui_button with "Greet".
 shimgui_run with.
+say "you typed: " plus shimgui_entry_text with 0.
+say "last button: " plus shimgui_last_click with.
