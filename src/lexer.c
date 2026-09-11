@@ -56,7 +56,10 @@ static TokenType resolve_keyword(Lexer *l) {
             if (len==5 && !memcmp(s,"catch",5)) return TOKEN_CATCH;
             return check_keyword(l, 5, "count", TOKEN_COUNT);
         case 'd': return check_keyword(l, 6, "define", TOKEN_DEFINE);
-        case 'e': return check_keyword(l, 3, "end", TOKEN_END);
+        case 'e':
+            if (len==4 && !memcmp(s,"elif",4)) return TOKEN_ELIF;
+            if (len==4 && !memcmp(s,"else",4)) return TOKEN_ELSE;
+            return check_keyword(l, 3, "end", TOKEN_END);
         case 'f':
             if (len==2 && !memcmp(s,"fn",2)) return TOKEN_FN;
             if (len==4 && !memcmp(s,"from",4)) return TOKEN_FROM;
@@ -266,6 +269,7 @@ const char *token_type_name(TokenType type) {
         case TOKEN_WITH: return "WITH";       case TOKEN_AND: return "AND";
         case TOKEN_AS: return "AS";           case TOKEN_IF: return "IF";
         case TOKEN_THEN: return "THEN";       case TOKEN_OTHERWISE: return "OTHERWISE";
+        case TOKEN_ELSE: return "ELSE";       case TOKEN_ELIF: return "ELIF";
         case TOKEN_END: return "END";         case TOKEN_COUNT: return "COUNT";
         case TOKEN_FROM: return "FROM";       case TOKEN_SAY: return "SAY";
         case TOKEN_GIVE: return "GIVE";       case TOKEN_BACK: return "BACK";

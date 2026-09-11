@@ -1,0 +1,84 @@
+SB
+# else / elif / otherwise chains and single-line `if cond then stmt.` bodies.
+# Rule: a body on the `then` line auto-closes at end of line and never
+# consumes a trailing `end`; a body starting on a new line runs to `end`.
+# `otherwise`/`else` is always a final else holding a normal block (which
+# may hold complete nested ifs); only single-token `elif` chains members.
+
+## single-line if without end; next statement runs unconditionally
+set hits to 0.
+if 1 is less than 2 then set hits to hits plus 1.
+set hits to hits plus 1.
+assert hits is 2.
+
+## single-line if as last statement before enclosing end
+set n2 to 50.
+if n2 is 50 then
+    if n2 is less than 100 then set n2 to 51.
+end
+assert n2 is 51.
+
+## classic block if/otherwise/end (original semantics, unchanged)
+set out to "x".
+if 5 is greater than 10 then
+    set out to "big".
+otherwise
+    set out to "small".
+end
+assert out is "small".
+
+## elif chain sharing one end
+define grade with n as
+    if n is greater than 8 then
+        give back "A".
+    elif n is greater than 6 then
+        give back "B".
+    elif n is greater than 4 then
+        give back "C".
+    else
+        give back "D".
+    end
+end
+assert grade with 10 is "A".
+assert grade with 7 is "B".
+assert grade with 5 is "C".
+assert grade with 2 is "D".
+
+## otherwise holding a complete nested if, plus the outer end
+define g with n as
+    if n is greater than 8 then
+        give back "A".
+    otherwise
+        if n is greater than 6 then
+            give back "B".
+        end
+        give back "D".
+    end
+end
+assert g with 10 is "A".
+assert g with 7 is "B".
+assert g with 3 is "D".
+
+## otherwise-if on following lines needs no chain end of its own
+define h with n as
+    if n is greater than 8 then give back "A".
+    otherwise if n is greater than 6 then give back "B".
+    otherwise give back "D".
+end
+assert h with 10 is "A".
+assert h with 7 is "B".
+assert h with 3 is "D".
+
+## same-line otherwise
+set s2 to 0.
+if 1 is 2 then set s2 to 1. otherwise set s2 to 2.
+assert s2 is 2.
+
+## single-line branches inside a counting loop
+set seen to list with.
+count i from 1 to 3 then
+    if i is 1 then add_to with seen and "one".
+    elif i is 2 then add_to with seen and "two".
+    else add_to with seen and "many".
+end
+assert seen is list with "one" and "two" and "many".

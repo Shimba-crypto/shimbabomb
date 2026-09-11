@@ -82,8 +82,15 @@ static NodeList parse_call_args(Parser *p) {
         // inside a larger expression, e.g. `(pi with) divided by 2`
         if (parser_check(p, TOKEN_DOT) || parser_check(p, TOKEN_END) ||
             parser_check(p, TOKEN_CATCH) || parser_check(p, TOKEN_OTHERWISE) ||
+            parser_check(p, TOKEN_ELSE) || parser_check(p, TOKEN_ELIF) ||
             parser_check(p, TOKEN_RPAREN) || parser_check(p, TOKEN_RBRACKET) ||
             parser_check(p, TOKEN_COMMA) || parser_check(p, TOKEN_THEN) ||
+            parser_check(p, TOKEN_IS) || parser_check(p, TOKEN_LESS) ||
+            parser_check(p, TOKEN_GREATER) || parser_check(p, TOKEN_EQUAL) ||
+            parser_check(p, TOKEN_NOTEQ) || parser_check(p, TOKEN_LESSEQ) ||
+            parser_check(p, TOKEN_GREATEREQ) || parser_check(p, TOKEN_PLUS) ||
+            parser_check(p, TOKEN_STAR) || parser_check(p, TOKEN_SLASH) ||
+            parser_check(p, TOKEN_MOD) || parser_check(p, TOKEN_INTDIV) ||
             parser_check(p, TOKEN_EOF)) {
             return args;
         }
@@ -470,11 +477,33 @@ static AstNode *parse_expression(Parser *p) {
 static AstNode *parse_block(Parser *p) {
     NodeList stmts = nodelist_create();
     while (!parser_check(p, TOKEN_END) && !parser_check(p, TOKEN_OTHERWISE) &&
+           !parser_check(p, TOKEN_ELSE) && !parser_check(p, TOKEN_ELIF) &&
            !parser_check(p, TOKEN_CATCH) && !parser_check(p, TOKEN_EOF) &&
            !p->had_error) {
         AstNode *stmt = parse_statement(p);
         if (stmt) nodelist_push(&stmts, stmt);
         parser_match(p, TOKEN_DOT);
+    }
+    return node_block(stmts);
+}
+
+static AstNode *parse_then_block(Parser *p, int then_line, int inline_mode, int *auto_closed) {
+    NodeList stmts = nodelist_create();
+    if (auto_closed) *auto_closed = 0;
+    while (!parser_check(p, TOKEN_END) && !parser_check(p, TOKEN_OTHERWISE) &&
+           !parser_check(p, TOKEN_ELSE) && !parser_check(p, TOKEN_ELIF) &&
+           !parser_check(p, TOKEN_CATCH) && !parser_check(p, TOKEN_EOF) &&
+           !p->had_error) {
+        AstNode *stmt = parse_statement(p);
+        if (stmt) nodelist_push(&stmts, stmt);
+        parser_match(p, TOKEN_DOT);
+        /* a single-line body (`if c then x.`) auto-closes: the statement
+           ended on the header line, so an `end` on a later line belongs to
+           the enclosing block, never to this one-line if. */
+        if (inline_mode && p->current.line != then_line) {
+            if (auto_closed) *auto_closed = 1;
+            break;
+        }
     }
     return node_block(stmts);
 }
@@ -631,12 +660,50 @@ static AstNode *parse_statement(Parser *p) {
         int line = p->current.line;
         parser_advance(p);
         AstNode *cond = parse_condition(p);
-        parser_expect(p, TOKEN_THEN, "expected 'then'");
-        AstNode *then_b = parse_block(p);
+        int then_line = p->current.line;
+        parser_expect(p, TOKEN_THEN, "expected 'then' after if condition");
+        if (p->had_error) return node_number(0, line);
+        /* last_auto tracks whether the most recent branch body was a
+           single-line body (auto-closed). The trailing `end` is required
+           only when the last branch was multi-line. */
+        int last_auto = 0;
+        AstNode *then_b = parse_then_block(p, then_line,
+                                           p->current.line == then_line,
+                                           &last_auto);
+
+        AstNode *conds[32];
+        AstNode *thens[32];
+        conds[0] = cond; thens[0] = then_b;
+        int n = 1;
         AstNode *else_b = NULL;
-        if (parser_match(p, TOKEN_OTHERWISE)) else_b = parse_block(p);
-        parser_expect(p, TOKEN_END, "expected 'end'");
-        return node_if(cond, then_b, else_b, line);
+        while (!p->had_error) {
+            int kw_line = p->current.line;
+            if (parser_match(p, TOKEN_OTHERWISE) || parser_match(p, TOKEN_ELSE)) {
+                /* final else: a normal block, which may itself hold (complete)
+                   nested ifs — the original semantics, unchanged. */
+                else_b = parse_then_block(p, kw_line,
+                                          p->current.line == kw_line, &last_auto);
+                break;
+            } else if (parser_match(p, TOKEN_ELIF)) {
+                /* single-token elif: an else-if chain member sharing the one
+                   trailing `end`. (`otherwise if` / `else if` spellings parse
+                   as else-holding-a-nested-if, which behaves the same.) */
+                if (n >= 32) { parser_error(p, "too many elif branches"); break; }
+                AstNode *c2 = parse_condition(p);
+                int eline = p->current.line;
+                parser_expect(p, TOKEN_THEN, "expected 'then' after elif condition");
+                AstNode *t2 = parse_then_block(p, eline,
+                                               p->current.line == eline,
+                                               &last_auto);
+                conds[n] = c2; thens[n] = t2; n++;
+            } else {
+                break;
+            }
+        }
+        if (!last_auto) parser_expect(p, TOKEN_END, "expected 'end'");
+        AstNode *res = else_b;
+        for (int i = n - 1; i >= 0; i--) res = node_if(conds[i], thens[i], res, line);
+        return res;
     }
 
     if (parser_check(p, TOKEN_COUNT)) {
