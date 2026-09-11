@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FAQ — SB</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--blue:#5b8def}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg)}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:48px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:28px;margin:28px 0 8px;transform:rotate(-.8deg)}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+code{background:#fff;border:1px solid var(--ink);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:14px}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="./">docs</a> · <a href="spec.html">spec</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>faq <span style="color:var(--ink-soft);font-size:28px">— the dots matter</span></h1>
+</header>
+
+<h2>Why does every line end with a dot?</h2>
+<div class="card"><p>That's the sentence terminator. No <code>;</code>, no braces. The parser needs the dot to know you're done. Miss it and you get <code>expected '.'</code>.</p></div>
+
+<h2>Why <code>list with 0</code> for a number?</h2>
+<div class="card alt"><p>Inside a <code>define</code>, <code>set x to 3</code> is <b>local</b>. To keep a number across calls, store it as <code>list with 3</code> and mutate via <code>x[0]</code> or <code>add_to</code>. See <a href="spec.html#scope">spec §5</a>.</p></div>
+
+<h2>“expected an expression” on <code>with then</code>?</h2>
+<div class="card"><p>Zero-arg calls still need <code>with</code>: <code>foo with.</code> and <code>define f with as</code>. Also check you didn't use <code>is greater than or equal to</code> — use <code>&gt;=</code>.</p></div>
+
+<h2>Headless but want a window?</h2>
+<div class="card alt"><p><code>ketiwe</code> needs X11 (<code>:0</code>). On a server use <code>Xvfb :99 &</code> and <code>DISPLAY=:99 sb file.sb</code>.</p></div>
+
+<h2>How do I ship?</h2>
+<div class="card"><p><code>sb build file.sb</code> makes a native binary, <code>sb pack deb</code> makes a <code>.deb</code>. Std is bundled.</p></div>
+
+<footer>
+  still stuck? <a href="https://github.com/Shimba-crypto/shimbabomb/issues">open an issue</a> — <a href="../">home</a>
+</footer>
+</div>
+</body>
+</html>

@@ -50,9 +50,11 @@ footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Cave
 <body>
 <div class="margin-line"></div>
 <div class="wrap">
-<nav style="display:flex;gap:14px;justify-content:flex-end;margin-bottom:6px;font-family:'Caveat',cursive;font-size:20px">
+<nav style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:6px;font-family:'Caveat',cursive;font-size:18px;flex-wrap:wrap">
   <a href="../" style="text-decoration:none;border-bottom:2px solid transparent">home</a>
   <a href="./" style="text-decoration:none;border-bottom:2px solid var(--red)">docs</a>
+  <a href="spec.html" style="text-decoration:none;border-bottom:2px solid transparent">spec</a>
+  <a href="guide.html" style="text-decoration:none;border-bottom:2px solid transparent">guide</a>
   <a href="../examples/" style="text-decoration:none;border-bottom:2px solid transparent">examples</a>
   <a href="../std/" style="text-decoration:none;border-bottom:2px solid transparent">std</a>
   <a href="https://github.com/Shimba-crypto/shimbabomb" style="text-decoration:none;border-bottom:2px solid transparent">github ↗</a>
@@ -159,6 +161,25 @@ shimgui_run <span class="k">with</span>.
 <tr><td><code>sb pack deb|rpm|exe</code></td><td>make installers (self-contained, 35M hello vs 80M full)</td></tr>
 <tr><td><code>sb fmt / test / doc / lsp</code></td><td>format, test, docs, LSP</td></tr>
 </table>
+
+<div class="card">
+  <span class="cap">new — start here</span>
+  <h3 style="margin:0">spec — complete reference</h3>
+  <p>One page: syntax, types, scoping, mutability, builtins, ketiwe/shimgui, modules, errors — verified, no need to open <code>src/</code>.</p>
+  <a href="spec.html">open spec →</a>
+</div>
+
+<div class="card alt">
+  <h3 style="margin:0">guide — 20 min</h3>
+  <p>Hello → lists → GTK app → game loop. Copy-paste ready.</p>
+  <a href="guide.html">open guide →</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:16px 0">
+  <div class="card"><h3>ketiwe</h3><p>X11 pixels, no deps — window, rect, input, 60fps.</p><a href="ketiwe.html">open →</a></div>
+  <div class="card alt"><h3>shimgui</h3><p>Real GTK — window, label, entry, button.</p><a href="shimgui.html">open →</a></div>
+  <div class="card"><h3>faq</h3><p>The dots, the <code>list with 0</code> law, headless.</p><a href="faq.html">open →</a></div>
+</div>
 
 <h2><span class="num">E</span>std</h2>
 <ul class="hand">

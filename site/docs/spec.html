@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spec — SB complete reference</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--highlight2:#ffb3c1;--green:#c8f0c9;--blue:#5b8def}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg);filter:drop-shadow(2px 2px 0 rgba(43,42,51,.12))}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:48px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:34px;font-weight:700;margin:44px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+h3{font-family:'Caveat',cursive;font-size:26px;margin:22px 0 8px;transform:rotate(-.6deg)}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+mark.pink{background:linear-gradient(104deg,transparent 2%,var(--highlight2) 6%,var(--highlight2) 94%,transparent 98%)}
+mark.green{background:linear-gradient(104deg,transparent 2%,var(--green) 6%,var(--green) 94%,transparent 98%)}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card .cap{position:absolute;right:12px;top:-15px;font-family:'Caveat',cursive;font-size:18px;color:var(--ink-soft);transform:rotate(2deg)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic} .b{color:#8b5bd6}
+ul.hand{list-style:none;margin:8px 0}
+ul.hand li{padding-left:34px;position:relative;margin:7px 0}
+ul.hand li::before{content:'';position:absolute;left:2px;top:9px;width:14px;height:14px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;background:var(--highlight);transform:rotate(-4deg)}
+table{border-collapse:collapse;margin:12px 0;width:100%}
+td,th{border:2px solid var(--ink);padding:6px 12px;text-align:left}
+th{background:#fff;font-family:'Caveat',cursive;font-size:22px}
+td{background:rgba(255,255,255,.6)}
+code{background:#fff;border:1px solid var(--ink);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:14px}
+.toc{columns:2;gap:18px}
+.toc a{display:block;margin:4px 0}
+.warn{border-left:4px solid var(--red);padding:8px 12px;background:rgba(224,82,82,.08);margin:12px 0;transform:rotate(-.3deg)}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="./">docs</a> · <a href="guide.html">guide</a> · <a href="../std/">std</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>spec <span style="color:var(--ink-soft);font-size:28px">— complete reference, no source needed</span></h1>
+</header>
+<p>This page is the <mark>contract</mark>. One page to work with SB — no need to open <code>src/*.c</code>. Written for humans, structured so AIs can also rely on it.</p>
+
+<div class="card">
+  <span class="cap">TL;DR</span>
+<pre><span class="k">SB</span>                     <span class="c"># first line of every file</span>
+<span class="k">set</span> x <span class="k">to</span> 1.           <span class="c"># every statement ends with .</span>
+<span class="k">define</span> f <span class="k">with</span> a <span class="k">as</span> <span class="k">give back</span> a. <span class="k">end</span>.
+<span class="k">pls bring</span> maths.       <span class="c"># import std/lib</span>
+<span class="k">say</span> f <span class="k">with</span> 2.          <span class="c"># → 2  (also f(2))</span></pre>
+</div>
+
+<h2><span class="num">0</span>contents</h2>
+<div class="toc">
+  <a href="#lex">1 lexical — what exists</a>
+  <a href="#types">2 types</a>
+  <a href="#stmts">3 statements & blocks</a>
+  <a href="#expr">4 expressions & operators</a>
+  <a href="#scope">5 scoping & mutability — the law</a>
+  <a href="#builtins">6 builtins</a>
+  <a href="#ketiwe">7 ketiwe (X11 pixel UI)</a>
+  <a href="#shimgui">8 shimgui (GTK)</a>
+  <a href="#modules">9 modules — pls bring</a>
+  <a href="#errors">10 errors, try/catch</a>
+  <a href="#cli">11 CLI & build</a>
+  <a href="#gotchas">12 gotchas for AIs</a>
+</div>
+
+<h2 id="lex"><span class="num">1</span>lexical — what exists</h2>
+<p>Every sentence ends with <code>.</code>. No <code>;</code>. Keywords are English words:</p>
+<div class="card">
+<pre><span class="k">SB</span>  <span class="k">set</span> <span class="k">to</span> <span class="k">give back</span> <span class="k">define</span> <span class="k">with</span> <span class="k">as</span> <span class="k">and</span> <span class="k">plus</span> <span class="k">minus</span> <span class="k">times</span> <span class="k">divided by</span> <span class="k">divided evenly by</span> <span class="k">mod</span>
+<span class="k">is</span> <span class="k">is not</span> <span class="k">is greater than</span> <span class="k">is less than</span> <span class="k">not</span> <span class="k">or</span> <span class="k">and</span>
+<span class="k">if</span> <span class="k">then</span> <span class="k">otherwise</span> <span class="k">otherwise if</span> <span class="k">else</span> <span class="k">elif</span> <span class="k">end</span>
+<span class="k">while</span> <span class="k">count</span> <span class="k">from</span> <span class="k">to</span> <span class="k">loop</span> <span class="k">through</span> <span class="k">break</span> <span class="k">continue</span>
+<span class="k">try</span> <span class="k">catch</span> <span class="k">raise</span> <span class="k">match</span> <span class="k">with</span> _
+<span class="k">say</span> <span class="k">ask</span> <span class="k">pls bring</span>
+<span class="c"># symbols that also exist: &lt; &gt; &lt;= &gt;= = == !=  ( ) [ ] ,  "  ${}</span></pre>
+</div>
+<div class="warn"><b>What does NOT exist:</b> <code>is greater than or equal to</code>, <code>is less than or equal to</code>, <code>substr</code>, <code>floor</code>/<code>ceil</code>, <code>ketiwe_delay</code>, <code>ketiwe_key</code> with args. Use symbols <code>&lt;= &gt;=</code>, <code>length</code>, <code>divided evenly by</code>, <code>sleep_ms</code>, <code>ketiwe_key_press</code> (no args).</div>
+
+<h2 id="types"><span class="num">2</span>types</h2>
+<table>
+<tr><th>type</th><th>literal</th><th>notes</th></tr>
+<tr><td>number</td><td><code>3</code> <code>2.5</code></td><td>float (double) everywhere. int division via <code>divided evenly by</code></td></tr>
+<tr><td>string</td><td><code>"hi ${x}"</code></td><td><code>${}</code> interpolation. no multiline needed</td></tr>
+<tr><td>list</td><td><code>list with 1 and 2 and 3</code> <code>list with</code> (empty)</td><td>ordered. <code>length with</code>, <code>item with i and L</code>, <code>L[i]</code>, <code>add_to</code>/<code>remove_from</code></td></tr>
+<tr><td>map</td><td><code>map("k", 1)</code></td><td><code>m["k"]</code> / <code>m["k"] = v</code></td></tr>
+</table>
+
+<h2 id="stmts"><span class="num">3</span>statements & blocks</h2>
+<div class="card">
+<pre><span class="k">SB</span>
+<span class="k">set</span> x <span class="k">to</span> 1.
+<span class="k">if</span> x <span class="k">is</span> 1 <span class="k">then</span> <span class="k">say</span> <span class="s">"yes"</span>. <span class="k">end</span>          <span class="c"># one-liner then auto-closes at EOL</span>
+<span class="k">if</span> x <span class="k">is</span> 1 <span class="k">then</span>
+  <span class="k">say</span> <span class="s">"big"</span>.
+<span class="k">otherwise if</span> x <span class="k">is</span> 0 <span class="k">then</span> <span class="k">say</span> <span class="s">"zero"</span>.
+<span class="k">otherwise</span> <span class="k">say</span> <span class="s">"no"</span>.   <span class="c"># also else / elif</span>
+<span class="k">end</span>
+<span class="k">while</span> x <span class="k">is less than</span> 3 <span class="k">then</span> <span class="k">set</span> x <span class="k">to</span> x <span class="k">plus</span> 1. <span class="k">end</span>
+<span class="k">count</span> i <span class="k">from</span> 0 <span class="k">to</span> 3 <span class="k">then</span> <span class="k">say</span> i. <span class="k">end</span>
+<span class="k">define</span> add <span class="k">with</span> a <span class="k">and</span> b <span class="k">as</span> <span class="k">give back</span> a <span class="k">plus</span> b. <span class="k">end</span>.
+<span class="k">define</span> tick <span class="k">with</span> <span class="k">as</span> <span class="k">say</span> <span class="s">"hi"</span>. <span class="k">end</span>.  <span class="c"># zero-arg needs with</span></pre>
+</div>
+
+<h2 id="expr"><span class="num">4</span>expressions & operators</h2>
+<ul class="hand">
+  <li><code>plus</code> also concatenates: <code>"a" plus "b" → "ab"</code></li>
+  <li><code>minus</code> <code>times</code> <code>divided by</code> <code>divided evenly by</code> (truncates toward 0) <code>mod</code></li>
+  <li>comparisons: <code>is</code> <code>is not</code> <code>is greater than</code> <code>is less than</code> + symbols <code>&lt; &gt; &lt;= &gt;= = == !=</code>. Prefix <code>not</code> works: <code>not a is less than b</code> ≡ <code>a &gt;= b</code></li>
+  <li>logic: <code>and</code> <code>or</code> <code>not</code></li>
+  <li>calls: <code>foo with 1 and 2</code> or <code>foo(1, 2)</code>. Lists/maps get <code>item with i and L</code>, <code>L[i]</code>, <code>m["k"]</code></li>
+</ul>
+<div class="warn"><b>Precedence trap:</b> <code>item with 0 and X plus 1</code> parses as <code>item with 0 and (X plus 1)</code> → crash. Hoist: <code>set t to item with 0 and X.</code> then <code>t plus 1</code>.</div>
+
+<h2 id="scope"><span class="num">5</span>scoping & mutability — the law</h2>
+<p><mark>This is the #1 source of bugs for AIs.</mark></p>
+<div class="card">
+<pre><span class="c"># globals</span>
+<span class="k">set</span> HP <span class="k">to</span> list <span class="k">with</span> 100.   <span class="c"># single-element list = mutable scalar</span>
+
+<span class="k">define</span> heal <span class="k">with</span> n <span class="k">as</span>
+  <span class="k">set</span> x <span class="k">to</span> item <span class="k">with</span> 0 <span class="k">and</span> HP.   <span class="c"># read</span>
+  <span class="k">set</span> x <span class="k">to</span> x <span class="k">plus</span> n.
+  <span class="k">set</span> HP[0] <span class="k">to</span> x.              <span class="c"># write-through ✓</span>
+  <span class="k">set</span> HP <span class="k">to</span> x.                 <span class="c"># ← WRONG: creates function-local, global unchanged</span>
+<span class="k">end</span>.</pre>
+</div>
+<ul class="hand">
+  <li><code>set NAME to v</code> inside a <code>define</code> is <b>always function-local</b>.</li>
+  <li>Persistent mutation must use <code>set LIST[i] to v</code> (in-range, write-through via <code>env_get_ptr</code>) or <code>add_to with LIST and v</code> / <code>remove_from with LIST and i</code> (write-through when first arg is an identifier).</li>
+  <li>Hence persistent scalars → <code>list with v</code>, read <code>item with 0 and NAME</code>, write <code>NAME[0] = v</code>. Arrays must be pre-sized before indexed writes (out-of-range is silently ignored). Clear by draining with <code>remove_from</code> loop — there is no clear builtin.</li>
+  <li>Args are <b>deep-copied</b> (maps/lists). Mutating an arg list does not affect caller unless it was a global identifier passed as <code>add_to</code>/<code>remove_from</code> first arg.</li>
+  <li>No <code>floor</code>/<code>ceil</code>: use <code>v divided evenly by 1</code> then adjust for negatives.</li>
+</ul>
+
+<h2 id="builtins"><span class="num">6</span>builtins</h2>
+<table>
+<tr><th>group</th><th>names</th></tr>
+<tr><td>math</td><td><code>abs</code> <code>sin</code> <code>cos</code> <code>tan</code> <code>sqrt</code> <code>log</code> only via <code>std/maths</code>; core has <code>divided evenly by</code> trick</td></tr>
+<tr><td>strings</td><td><code>length with s</code> <code>upper/lower/trim/split/join/contains/replace/find/reverse/to_string/to_number/type_of</code></td></tr>
+<tr><td>lists</td><td><code>length with L</code> <code>item with i and L</code> <code>add_to with L and v</code> <code>remove_from with L and i</code> <code>L[i]</code></td></tr>
+<tr><td>time</td><td><code>time_ms with</code> <code>sleep_ms with n</code> (not <code>ketiwe_delay</code>)</td></tr>
+<tr><td>io</td><td><code>say</code> <code>ask</code></td></tr>
+</table>
+<p><b>Keys:</b> there is no <code>substr</code> — use <code>length</code> + concatenation. Font for <code>ketiwe_text</code> is <code>fixed</code> (~8px/char mono, ~13px tall, baseline y).</p>
+
+<h2 id="ketiwe"><span class="num">7</span>ketiwe (X11 pixel UI) — no GTK</h2>
+<div class="card alt">
+<pre>ketiwe_window <span class="k">with</span> <span class="s">"Title"</span> <span class="k">and</span> 800 <span class="k">and</span> 600.
+ketiwe_clear <span class="k">with</span> <span class="s">"#1a1a2e"</span>.
+ketiwe_rect <span class="k">with</span> x <span class="k">and</span> y <span class="k">and</span> w <span class="k">and</span> h <span class="k">and</span> <span class="s">"#fff"</span>.
+ketiwe_rect_outline <span class="k">with</span> x <span class="k">and</span> y <span class="k">and</span> w <span class="k">and</span> h <span class="k">and</span> <span class="s">"#fff"</span>.
+ketiwe_circle <span class="k">with</span> cx <span class="k">and</span> cy <span class="k">and</span> r <span class="k">and</span> <span class="s">"#fff"</span>.
+ketiwe_line <span class="k">with</span> x1 <span class="k">and</span> y1 <span class="k">and</span> x2 <span class="k">and</span> y2 <span class="k">and</span> <span class="s">"#fff"</span>.
+ketiwe_text <span class="k">with</span> x <span class="k">and</span> y <span class="k">and</span> <span class="s">"hi"</span>.  <span class="c"># only x y text, color arg is ignored</span>
+ketiwe_button <span class="k">with</span> x <span class="k">and</span> y <span class="k">and</span> w <span class="k">and</span> h <span class="k">and</span> label. <span class="c"># returns 1 on click</span>
+ketiwe_poll <span class="k">with</span>. ketiwe_flip <span class="k">with</span>.
+ketiwe_key_press <span class="k">with</span>.   <span class="c"># no args, one-shot X11 keysym int, cleared on read. 119 w 97 a 115 s 100 d 32 space 49-52 1-4 113 q 65361-65364 arrows. Esc also closes window via ketiwe_poll.</span>
+ketiwe_mouse_x/y/down <span class="k">with</span>.  <span class="c"># held state, updated on poll. No key-held API → design one-shot steps (X autorepeat helps) + mouse fire.</span>
+time_ms / sleep_ms <span class="k">with</span>   <span class="c"># frame pacing; ketiwe_text uses XDrawString baseline</span></pre>
+</div>
+
+<h2 id="shimgui"><span class="num">8</span>shimgui (GTK)</h2>
+<div class="card">
+<pre>shimgui_window <span class="k">with</span> <span class="s">"App"</span> <span class="k">and</span> 460 <span class="k">and</span> 320.
+shimgui_label <span class="k">with</span> <span class="s">"Hello"</span>.
+shimgui_entry <span class="k">with</span> <span class="s">"Name..."</span>.
+shimgui_button <span class="k">with</span> <span class="s">"Click"</span>.
+shimgui_run <span class="k">with</span>.
+<span class="k">say</span> shimgui_entry_text <span class="k">with</span> 0.
+<span class="k">say</span> shimgui_last_click <span class="k">with</span>.</pre>
+</div>
+
+<h2 id="modules"><span class="num">9</span>modules — pls bring</h2>
+<p><code>pls bring NAME.</code> resolves <code>&lt;searchpath&gt;/NAME.sb</code> then <code>&lt;searchpath&gt;/NAME/main.sb</code> then the importing file's own directory (added to search path on load). Convention: one dir per lib with <code>main.sb</code> umbrella. Install via symlink/dir in <code>~/.shimbabomb/libraries/NAME/</code>.</p>
+<div class="warn">Reserved words you cannot use as params: <code>count</code> (loop), likely others — rename to <code>cols</code>/<code>cnt</code>.</div>
+
+<h2 id="errors"><span class="num">10</span>errors, try/catch</h2>
+<div class="card alt">
+<pre><span class="k">try</span>
+  <span class="k">set</span> y <span class="k">to</span> 10 <span class="k">minus</span> <span class="s">"oops"</span>.
+<span class="k">catch</span> e
+  <span class="k">say</span> e. <span class="k">say</span> e_info[<span class="s">"line"</span>]. <span class="k">say</span> e_info[<span class="s">"trace"</span>]. <span class="k">say</span> err_name <span class="k">with</span> e_info[<span class="s">"code"</span>].
+<span class="k">end</span></pre>
+</div>
+
+<h2 id="cli"><span class="num">11</span>CLI & build</h2>
+<table>
+<tr><th>cmd</th><th>notes</th></tr>
+<tr><td><code>sb file.sb</code></td><td>run</td></tr>
+<tr><td><code>sb -i</code></td><td>REPL. <code>sb --parse-only file.sb</code> checks syntax</td></tr>
+<tr><td><code>sb build file.sb</code></td><td>compile to standalone native binary</td></tr>
+<tr><td><code>sb pack deb|rpm|exe</code></td><td>installers</td></tr>
+<tr><td><code>sb fmt / test / doc / lsp</code></td><td>format, test, docs, LSP</td></tr>
+</table>
+
+<h2 id="gotchas"><span class="num">12</span>checklist — copy this</h2>
+<ul class="hand">
+  <li>Use <code>item with 0 and VAR</code> / <code>VAR[0] to v</code> for <b>every</b> cross-function scalar.</li>
+  <li>Pre-size lists to N before <code>LIST[i]=v</code> (e.g. 256 zeros for 16×16 map).</li>
+  <li>No <code>>=</code> word form — use <code>&gt;=</code> <code>&lt;=</code> or <code>not (a is less than b)</code>. Verify with <code>sb --parse-only</code>.</li>
+  <li>Hoist <code>item with i and L</code> before math: <code>set t to item with i and L.</code></li>
+  <li>Text width = <code>(length with s) times 6</code>, height 13 (fixed font).</li>
+  <li>One-liner <code>then</code> auto-closes at EOL — trailing <code>end</code> belongs to outer block.</li>
+  <li><code>define f with as</code> (not <code>define f as</code>) for zero args.</li>
+  <li>Verify after edits: <code>sb tests/conditions.sb</code>, <code>tests/elseif.sb</code>, <code>examples/fib.sb</code>.</li>
+</ul>
+<p><mark>Tip:</mark> this spec + <code>site/docs/</code> + <code>std/*.sb</code> are the reference. Everything here is verified against the interpreter — you don't need <code>.c</code>.</p>
+
+<footer>
+  <a href="./">← docs</a> · <a href="../">home</a> · <a href="https://github.com/Shimba-crypto/shimbabomb">github</a>
+</footer>
+</div>
+</body>
+</html>

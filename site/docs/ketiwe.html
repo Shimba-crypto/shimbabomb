@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ketiwe — pixel UI, zero deps</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--blue:#5b8def;--green:#c8f0c9}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg)}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:48px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:34px;font-weight:700;margin:44px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+h3{font-family:'Caveat',cursive;font-size:26px;margin:18px 0 8px;transform:rotate(-.6deg)}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card .cap{position:absolute;right:12px;top:-15px;font-family:'Caveat',cursive;font-size:18px;color:var(--ink-soft);transform:rotate(2deg)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+ul.hand{list-style:none;margin:8px 0}
+ul.hand li{padding-left:34px;position:relative;margin:7px 0}
+ul.hand li::before{content:'';position:absolute;left:2px;top:9px;width:14px;height:14px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;background:var(--highlight);transform:rotate(-4deg)}
+table{border-collapse:collapse;margin:12px 0;width:100%}
+td,th{border:2px solid var(--ink);padding:6px 12px;text-align:left}
+th{background:#fff;font-family:'Caveat',cursive;font-size:22px}
+td{background:rgba(255,255,255,.6)}
+code{background:#fff;border:1px solid var(--ink);border-radius:6px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:14px}
+.warn{border-left:4px solid var(--red);padding:8px 12px;background:rgba(224,82,82,.08);margin:12px 0}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="./">docs</a> · <a href="spec.html">spec</a> · <a href="guide.html">guide</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>ketiwe <span style="color:var(--ink-soft);font-size:28px">— X11 pixels, no GTK, no deps</span></h1>
+</header>
+<p>From-scratch X11. One window, raw pixels, your loop. Perfect for <mark>games, tools, raycasters</mark>. No HTML, no Electron.</p>
+
+<h2><span class="num">1</span>open a window</h2>
+<div class="card">
+  <span class="cap">minimal.sb</span>
+<pre><span class="k">SB</span>
+pls bring ketiwe.
+ketiwe_window <span class="k">with</span> <span class="s">"My Window"</span> <span class="k">and</span> 800 <span class="k">and</span> 600.
+<span class="k">while</span> ketiwe_poll <span class="k">with</span> <span class="k">is</span> 0 <span class="k">then</span>
+  ketiwe_clear <span class="k">with</span> <span class="s">"#1a1a2e"</span>.
+  ketiwe_rect <span class="k">with</span> 100 <span class="k">and</span> 100 <span class="k">and</span> 200 <span class="k">and</span> 100 <span class="k">and</span> <span class="s">"#e05252"</span>.
+  ketiwe_flip <span class="k">with</span>.
+  sleep_ms <span class="k">with</span> 16.
+<span class="k">end</span></pre>
+</div>
+
+<h2><span class="num">2</span>draw — the primitives</h2>
+<table>
+<tr><th>call</th><th>what it does</th></tr>
+<tr><td><code>ketiwe_clear with "#rrggbb"</code></td><td>fill whole window</td></tr>
+<tr><td><code>ketiwe_rect with x and y and w and h and "#rrggbb"</code></td><td>filled rect</td></tr>
+<tr><td><code>ketiwe_rect_outline with x and y and w and h and "#rrggbb"</code></td><td>outline</td></tr>
+<tr><td><code>ketiwe_circle with cx and cy and r and "#rrggbb"</code></td><td>filled circle</td></tr>
+<tr><td><code>ketiwe_line with x1 and y1 and x2 and y2 and "#rrggbb"</code></td><td>line</td></tr>
+<tr><td><code>ketiwe_text with x and y and "hi"</code></td><td>text — only x y text (color arg ignored). <code>fixed</code> font, ~8×13</td></tr>
+<tr><td><code>ketiwe_button with x and y and w and h and "label"</code></td><td>button primitive — returns 1 on click</td></tr>
+</table>
+<div class="warn"><b>Font:</b> <code>ketiwe_text</code> uses X11 <code>fixed</code>, baseline y. Measure with <code>(length with s) times 8</code> ≈ width, height 13.</div>
+
+<h2><span class="num">3</span>input — poll, then read</h2>
+<div class="card">
+<pre><span class="k">while</span> ketiwe_poll <span class="k">with</span> <span class="k">is</span> 0 <span class="k">then</span>
+  <span class="k">set</span> k <span class="k">to</span> ketiwe_key_press <span class="k">with</span>.  <span class="c"># one-shot keysym, cleared on read</span>
+  <span class="k">if</span> k <span class="k">is</span> 119 <span class="k">then</span> <span class="k">say</span> <span class="s">"w"</span>. <span class="k">end</span>  <span class="c"># 119 w 97 a 115 s 100 d 32 space 49-52 1-4 113 q 65361-65364 arrows</span>
+  <span class="k">if</span> ketiwe_mouse_down <span class="k">with</span> <span class="k">is</span> 1 <span class="k">then</span> <span class="k">say</span> <span class="s">"click"</span>. <span class="k">end</span>
+  <span class="k">set</span> mx <span class="k">to</span> ketiwe_mouse_x <span class="k">with</span>.
+  ketiwe_flip <span class="k">with</span>.
+<span class="k">end</span></pre>
+</div>
+<ul class="hand">
+  <li><code>ketiwe_poll with</code> returns non-zero when window is closed (also handles Esc). Call it once per frame.</li>
+  <li><code>ketiwe_key_press with</code> takes <b>no args</b> — one-shot, cleared after read. No held-key API; X autorepeat makes holding feel continuous. Use <code>ketiwe_mouse_down</code> for held fire.</li>
+  <li>Frame pacing: <code>time_ms with</code> + <code>sleep_ms with 16</code> for ~60fps.</li>
+</ul>
+
+<h2><span class="num">4</span>pattern — UI toolkit in 60 lines</h2>
+<div class="card alt">
+<pre><span class="c"># immediate-mode, poll → draw → flip</span>
+ketiwe_clear <span class="k">with</span> <span class="s">"#0a0a1a"</span>.
+ketiwe_rect <span class="k">with</span> 20 <span class="k">and</span> 20 <span class="k">and</span> 760 <span class="k">and</span> 560 <span class="k">and</span> <span class="s">"#1a1a2e"</span>.
+ketiwe_rect_outline <span class="k">with</span> 20 <span class="k">and</span> 20 <span class="k">and</span> 760 <span class="k">and</span> 28 <span class="k">and</span> <span class="s">"#16213e"</span>.
+ketiwe_text <span class="k">with</span> 30 <span class="k">and</span> 30 <span class="k">and</span> <span class="s">"My Panel"</span>.
+<span class="k">if</span> ketiwe_button <span class="k">with</span> 30 <span class="k">and</span> 70 <span class="k">and</span> 120 <span class="k">and</span> 32 <span class="k">and</span> <span class="s">"Click"</span> <span class="k">is</span> 1 <span class="k">then</span> <span class="k">say</span> <span class="s">"clicked"</span>. <span class="k">end</span></pre>
+</div>
+<p>That's how <code>shimmm</code> (the toolkit behind Shotout) is built — <mark>panels, buttons, sliders, minimap, DDA raycaster</mark> all on ketiwe primitives.</p>
+
+<footer>
+  next: <a href="spec.html">spec</a> · <a href="guide.html">guide</a> · <a href="../std/">std</a>
+</footer>
+</div>
+</body>
+</html>

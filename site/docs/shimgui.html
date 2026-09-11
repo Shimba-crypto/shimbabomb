@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shimgui — real GTK</title>
+<link rel="icon" href="../logo.svg">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fbf7ee;--ink:#2b2a33;--ink-soft:#5a5866;--red:#e05252;--highlight:#ffe66d;--blue:#5b8def}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Patrick Hand',cursive;font-size:18px;line-height:1.6;color:var(--ink);background:var(--paper);background-image:linear-gradient(rgba(91,141,239,.10) 1px, transparent 1px);background-size:100% 34px;min-height:100vh}
+.margin-line{position:fixed;top:0;bottom:0;left:64px;width:2px;background:rgba(224,82,82,.35);pointer-events:none;z-index:0}
+@media(max-width:700px){.margin-line{left:28px}}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px 96px 96px}
+@media(max-width:700px){.wrap{padding-left:48px}}
+a{color:var(--ink);text-underline-offset:3px}
+a:hover{color:var(--red)}
+.top{font-family:'Caveat',cursive;font-size:18px;margin-bottom:14px}
+.top a{text-decoration:none;border-bottom:2px solid var(--ink);padding-bottom:1px}
+header{display:flex;gap:16px;align-items:center;margin:10px 0 8px}
+.logo{width:54px;height:54px;transform:rotate(-4deg)}
+h1{font-family:'Caveat',cursive;font-weight:700;font-size:48px;transform:rotate(-1.2deg)}
+h2{font-family:'Caveat',cursive;font-size:34px;font-weight:700;margin:44px 0 10px;transform:rotate(-1deg)}
+h2 .num{display:inline-grid;place-items:center;width:42px;height:42px;border:2px solid var(--ink);border-radius:225px 15px 255px 15px/15px 255px 15px 225px;font-size:22px;margin-right:10px;background:#fff;transform:rotate(3deg)}
+mark{background:linear-gradient(104deg,transparent 2%,var(--highlight) 6%,var(--highlight) 94%,transparent 98%);padding:0 6px;border-radius:4px}
+.card{position:relative;background:#fff;padding:16px 18px 14px;margin:16px 0;box-shadow:2px 4px 10px rgba(43,42,51,.12);transform:rotate(-.6deg)}
+.card.alt{transform:rotate(.5deg)}
+.card::before{content:'';position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-2deg);width:84px;height:22px;background:rgba(255,230,109,.55);border-left:1px dashed rgba(43,42,51,.15);border-right:1px dashed rgba(43,42,51,.15)}
+.card .cap{position:absolute;right:12px;top:-15px;font-family:'Caveat',cursive;font-size:18px;color:var(--ink-soft);transform:rotate(2deg)}
+pre{font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.k{color:#5b8def} .s{color:#c2571b} .c{color:#9a97a8;font-style:italic}
+footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Caveat',cursive;font-size:20px;transform:rotate(-1deg)}
+</style>
+</head>
+<body>
+<div class="margin-line"></div>
+<div class="wrap">
+<p class="top"><a href="../">← home</a> · <a href="./">docs</a> · <a href="spec.html">spec</a></p>
+<header>
+  <img class="logo" src="../logo.svg" alt="SB">
+  <h1>shimgui <span style="color:var(--ink-soft);font-size:28px">— real GTK, not a canvas</span></h1>
+</header>
+<p>When you want native widgets, not pixels. <mark>GtkButton, GtkEntry, GtkLabel</mark> under SB words.</p>
+
+<h2><span class="num">1</span>minimal window</h2>
+<div class="card">
+<pre><span class="k">SB</span>
+pls bring shimgui.
+shimgui_window <span class="k">with</span> <span class="s">"Counter"</span> <span class="k">and</span> 420 <span class="k">and</span> 200.
+shimgui_label <span class="k">with</span> <span class="s">"0"</span>.
+shimgui_button <span class="k">with</span> <span class="s">"+ 1"</span>.
+shimgui_button <span class="k">with</span> <span class="s">"Quit"</span>.
+shimgui_run <span class="k">with</span>.
+<span class="k">say</span> shimgui_last_click <span class="k">with</span>.  <span class="c"># which button id</span>
+<span class="k">say</span> shimgui_entry_text <span class="k">with</span> 0.</pre>
+</div>
+
+<h2><span class="num">2</span>kit</h2>
+<table style="border-collapse:collapse;margin:12px 0;width:100%">
+<tr><th style="border:2px solid var(--ink);padding:6px 12px;background:#fff;font-family:'Caveat',cursive">call</th><th style="border:2px solid var(--ink);padding:6px 12px;background:#fff;font-family:'Caveat',cursive">does</th></tr>
+<tr><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)"><code>shimgui_window with "Title" and W and H</code></td><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)">top-level</td></tr>
+<tr><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)"><code>shimgui_label with "text"</code></td><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)">label</td></tr>
+<tr><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)"><code>shimgui_entry with "placeholder"</code></td><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)">text input</td></tr>
+<tr><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)"><code>shimgui_button with "label"</code></td><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)">button</td></tr>
+<tr><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)"><code>shimgui_stat / shimgui_meter with ...</code></td><td style="border:2px solid var(--ink);padding:6px 12px;background:rgba(255,255,255,.6)">stats (see examples/shimgui_demo.sb)</td></tr>
+</table>
+
+<p>Need pixels instead? → <a href="ketiwe.html">ketiwe</a> (X11 raw). Both are in <code>std/</code> as SB you can copy.</p>
+
+<footer>
+  <a href="./">← docs</a> · <a href="spec.html">spec</a> · <a href="ketiwe.html">ketiwe</a>
+</footer>
+</div>
+</body>
+</html>
