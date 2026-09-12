@@ -126,7 +126,7 @@ X11_CFLAGS=$(pkg-config --cflags x11 2>/dev/null || echo "")
 X11_LIBS=$(pkg-config --libs x11 2>/dev/null || echo "-lX11")
 
 TMPBIN="$(mktemp -d)/sb"
-gcc -std=c11 -Wall -O2 \
+gcc -std=c11 -Wall -Wno-format-truncation -O2 \
     $GTK_CFLAGS $WEBKIT_CFLAGS $CURL_CFLAGS $X11_CFLAGS \
     -DSB_STD_DIR="\"$DATA_DIR/std\"" \
     -DSB_SRC_DIR="\"$DATA_DIR\"" \
