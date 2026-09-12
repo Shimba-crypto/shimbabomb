@@ -1,0 +1,4 @@
+# Trusted-registry gate: only owners can publish libs to site/registry/
+# (anything merged here auto-deploys to shimbabomb.pages.dev and becomes
+# installable via `sb -b <name>`)
+/site/registry/ @Shimba-crypto

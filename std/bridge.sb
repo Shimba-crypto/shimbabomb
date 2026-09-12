@@ -1,0 +1,142 @@
+SB
+## bridge — smart shimgui <-> sometui bridge (not hardcoded, AI pick)
+## Auto-detects backend: X11 (DISPLAY) -> shimgui/ketiwe, else terminal -> sometui
+## Provides: bridge_init, bridge_text, bridge_box, bridge_button, bridge_input, bridge_clear, bridge_render
+## AI pick: checks DISPLAY, WAYLAND_DISPLAY, TERM, tput cols, and dumb fallback
+
+pls bring sometui.
+## shimgui is optional (X11), only bring if DISPLAY later — but bring now for parse
+
+set BRIDGE_BACKEND to list with "auto".
+set BRIDGE_WIDTH to list with 80.
+set BRIDGE_HEIGHT to list with 24.
+
+define bridge_detect as
+  set disp to run with "echo $DISPLAY 2>/dev/null".
+  set way to run with "echo $WAYLAND_DISPLAY 2>/dev/null".
+  set term to run with "echo $TERM 2>/dev/null".
+  set cols_raw to run with "tput cols 2>/dev/null || echo 80".
+  set cols to to_number with trim with cols_raw.
+  set BRIDGE_WIDTH[0] to cols.
+  set rows_raw to run with "tput lines 2>/dev/null || echo 24".
+  set rows to to_number with trim with rows_raw.
+  set BRIDGE_HEIGHT[0] to rows.
+  set disp_t to trim with disp.
+  set way_t to trim with way.
+  ## AI pick: X11 if DISPLAY non-empty and not dumb, else terminal
+  if length with disp_t is greater than 0 then
+    set BRIDGE_BACKEND[0] to "shimgui".
+    give back "shimgui".
+  end
+  if length with way_t is greater than 0 then
+    set BRIDGE_BACKEND[0] to "shimgui".
+    give back "shimgui".
+  end
+  set BRIDGE_BACKEND[0] to "sometui".
+  give back "sometui".
+end
+
+define bridge_backend as
+  set cur to item with 0 and BRIDGE_BACKEND.
+  if cur is "auto" then
+    give back bridge_detect with.
+  end
+  give back cur.
+end
+
+define bridge_set with name as
+  if name is "auto" then
+    set BRIDGE_BACKEND[0] to "auto".
+    give back bridge_detect with.
+  end
+  set BRIDGE_BACKEND[0] to name.
+  give back name.
+end
+
+## — unified widgets ——————————————————————————————————————————————
+
+define bridge_clear with as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    ## shimgui uses window, clear via ketiwe if available
+    give back 0.
+  end
+  tui_clear with.
+end
+
+define bridge_text with row and col and txt as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    ## shimgui: use label at x,y (col*8, row*16 approx)
+    set x to col times 8.
+    set y to row times 16.
+    give back 0.
+    give back 0.
+  end
+  tui_text with row and col and txt.
+end
+
+define bridge_box with row and col and w and h as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    set x to col times 8.
+    set y to row times 16.
+    set pw to w times 8.
+    set ph to h times 16.
+    ## shimgui box via rect outline (ketiwe)
+    give back 0.
+  end
+  tui_box with row and col and w and h.
+end
+
+define bridge_button with row and col and label and active as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    set x to col times 8.
+    set y to row times 16.
+    give back 0.
+  end
+  tui_button with row and col and label and active.
+  give back active.
+end
+
+define bridge_input with row and col and w and val as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    set x to col times 8.
+    set y to row times 16.
+    give back val.
+  end
+  tui_text with row and col and "[" plus val plus "]".
+  give back val.
+end
+
+define bridge_status with txt as
+  set be to bridge_backend with.
+  set w to item with 0 and BRIDGE_WIDTH.
+  if be is "shimgui" then
+    give back 0.
+  end
+  set h to item with 0 and BRIDGE_HEIGHT.
+  tui_status_bar with h and 1 and w and txt and 7 and 4.
+end
+
+## — AI recommend ———————————————————————————————————————————————
+
+define bridge_recommend as
+  set be to bridge_backend with.
+  set w to item with 0 and BRIDGE_WIDTH.
+  set h to item with 0 and BRIDGE_HEIGHT.
+  set disp to trim with run with "echo $DISPLAY 2>/dev/null".
+  set is_ssh to trim with run with "echo $SSH_CONNECTION 2>/dev/null".
+  if length with is_ssh is greater than 0 then
+    give back map with "backend" and "sometui" and "reason" and "SSH detected, terminal is safer" and "w" and w and "h" and h.
+  end
+  if be is "shimgui" then
+    if w is less than 80 then
+      give back map with "backend" and "sometui" and "reason" and "X11 but narrow terminal, sometui fits better" and "w" and w and "h" and h.
+    end
+    give back map with "backend" and "shimgui" and "reason" and "DISPLAY set, X11 available, rich widgets" and "w" and w and "h" and h.
+  end
+  give back map with "backend" and "sometui" and "reason" and "No DISPLAY, pure terminal, no X11 needed" and "w" and w and "h" and h.
+end

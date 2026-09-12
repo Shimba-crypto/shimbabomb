@@ -7,6 +7,11 @@
 #include <time.h>
 #include <dirent.h>
 #include <fcntl.h>
+
+// v1.25.0: web registry (static JSON on Cloudflare Pages, see site/registry/)
+#ifndef SB_REGISTRY_BASE
+#define SB_REGISTRY_BASE "https://shimbabomb.pages.dev/registry"
+#endif
 #ifndef _WIN32
 #include <sys/utsname.h>
 #include <sys/prctl.h>
@@ -186,6 +191,143 @@ static int build_to(const char *src_path, const char *out_path) {
     return rc==0 ? 0 : 1;
 }
 
+// ── v1.25.0 web registry helpers ─────────────────────────────────────
+// Minimal JSON string getter: finds "key" then ':' then quoted value.
+static int sb_json_string(const char *json, const char *key, char *out, size_t cap) {
+    char pat[128];
+    snprintf(pat, sizeof(pat), "\"%s\"", key);
+    const char *p = strstr(json, pat);
+    if (!p) return 0;
+    p = strchr(p + strlen(pat), ':');
+    if (!p) return 0;
+    p++;
+    while (*p==' '||*p=='\t'||*p=='\n'||*p=='\r') p++;
+    if (*p!='"') return 0;
+    p++;
+    size_t i = 0;
+    while (*p && *p!='"' && i+1<cap) {
+        if (*p=='\\' && p[1]) { p++; }
+        out[i++] = *p++;
+    }
+    out[i] = '\0';
+    return 1;
+}
+
+// sha256 of a file via sha256sum; returns 1 on success.
+static int sb_sha256_file(const char *path, char *out, size_t cap) {
+    char cmd[1152];
+    snprintf(cmd, sizeof(cmd), "sha256sum '%s' 2>/dev/null | cut -d' ' -f1 | tr -d '\\n'", path);
+    FILE *pp = popen(cmd, "r");
+    if (!pp) return 0;
+    size_t n = fread(out, 1, cap-1, pp);
+    pclose(pp);
+    out[n] = '\0';
+    return n >= 16;
+}
+
+// Local registry: ~/.shimbabomb/registry/<pkg>-<ver?>.tgz → extract <pkg>.sb to dst.
+static int sb_try_local_registry(const char *pkg, const char *ver, const char *dst) {
+    const char *home = getenv("HOME");
+    if (!home) return 0;
+    char regdir[1024];
+    snprintf(regdir, sizeof(regdir), "%s/.shimbabomb/registry", home);
+    DIR *d = opendir(regdir);
+    if (!d) return 0;
+    char best[1024] = {0};
+    struct dirent *de;
+    size_t plen = strlen(pkg);
+    while ((de = readdir(d)) != NULL) {
+        size_t l = strlen(de->d_name);
+        if (l < plen + 5) continue; // need "<pkg>-x.tgz" at minimum
+        if (strncmp(de->d_name, pkg, plen) != 0) continue;
+        if (de->d_name[plen] != '-') continue;
+        if (strcmp(de->d_name + l - 4, ".tgz") != 0) continue;
+        if (ver && ver[0]) {
+            char want[320];
+            snprintf(want, sizeof(want), "%s-%s.tgz", pkg, ver);
+            if (strcmp(de->d_name, want) != 0) continue;
+            snprintf(best, sizeof(best), "%s/%s", regdir, de->d_name);
+            break;
+        }
+        // no version requested: prefer lexicographically greatest (good enough for semver-ish)
+        char cand[1024];
+        snprintf(cand, sizeof(cand), "%s/%s", regdir, de->d_name);
+        if (!best[0] || strcmp(cand, best) > 0) snprintf(best, sizeof(best), "%s", cand);
+    }
+    closedir(d);
+    if (!best[0]) return 0;
+    char cmd[2300];
+    // try root-level <pkg>.sb first, then any nested path
+    snprintf(cmd, sizeof(cmd),
+        "tar xzf '%s' -O './%s.sb' > '%s' 2>/dev/null || tar xzf '%s' -O --wildcards '*/%s.sb' > '%s' 2>/dev/null",
+        best, pkg, dst, best, pkg, dst);
+    if (system(cmd) != 0) return 0;
+    if (!file_exists(dst)) return 0;
+    printf("  %s -> %s (from local registry)\n", pkg, dst);
+    return 1;
+}
+
+// Web registry: SB_REGISTRY_BASE/<pkg>.json → tarballUrl (.sb or .tgz) → dst, sha256-verified.
+static int sb_try_pages_registry(const char *pkg, const char *ver, const char *dst) {
+    char meta[2048], tmpjson[256], tmpfile[256];
+    snprintf(meta, sizeof(meta), SB_REGISTRY_BASE "/%s.json", pkg);
+    snprintf(tmpjson, sizeof(tmpjson), "/tmp/sb_reg_%d.json", getpid());
+    snprintf(tmpfile, sizeof(tmpfile), "/tmp/sb_reg_%d.pkg", getpid());
+    char cmd[2300];
+    snprintf(cmd, sizeof(cmd), "curl -sL --max-time 15 '%s' -o '%s' 2>/dev/null", meta, tmpjson);
+    if (system(cmd) != 0 || !file_exists(tmpjson)) return 0;
+    char *json = read_file(tmpjson);
+    unlink(tmpjson);
+    if (!json) return 0;
+    char wantver[64] = {0}, url[1024] = {0}, sha[128] = {0};
+    if (ver && ver[0]) snprintf(wantver, sizeof(wantver), "%s", ver);
+    else if (!sb_json_string(json, "latest", wantver, sizeof(wantver))) { free(json); return 0; }
+    // find the version block: scan for "version": "<wantver>" then url/sha after it
+    char vpat[80];
+    snprintf(vpat, sizeof(vpat), "\"version\": \"%s\"", wantver);
+    // tolerate spacing variants: fall back to bare version token
+    const char *blk = strstr(json, vpat);
+    if (!blk) {
+        char vpat2[80];
+        snprintf(vpat2, sizeof(vpat2), "\"version\":\"%s\"", wantver);
+        blk = strstr(json, vpat2);
+    }
+    if (!blk) {
+        // single-version files: accept top-level tarballUrl
+        if (!sb_json_string(json, "tarballUrl", url, sizeof(url))) { free(json); return 0; }
+        sb_json_string(json, "sha256", sha, sizeof(sha));
+    } else {
+        if (!sb_json_string(blk, "tarballUrl", url, sizeof(url))) { free(json); return 0; }
+        sb_json_string(blk, "sha256", sha, sizeof(sha));
+    }
+    free(json);
+    if (!url[0]) return 0;
+    size_t ulen = strlen(url);
+    if (ulen > 3 && strcmp(url + ulen - 3, ".sb") == 0) {
+        snprintf(cmd, sizeof(cmd), "curl -sL --max-time 30 '%s' -o '%s' 2>/dev/null", url, dst);
+        if (system(cmd) != 0 || !file_exists(dst)) return 0;
+    } else {
+        snprintf(cmd, sizeof(cmd), "curl -sL --max-time 60 '%s' -o '%s' 2>/dev/null", url, tmpfile);
+        if (system(cmd) != 0 || !file_exists(tmpfile)) return 0;
+        snprintf(cmd, sizeof(cmd),
+            "tar xzf '%s' -O './%s.sb' > '%s' 2>/dev/null || tar xzf '%s' -O --wildcards '*/%s.sb' > '%s' 2>/dev/null",
+            tmpfile, pkg, dst, tmpfile, pkg, dst);
+        int rc = system(cmd);
+        unlink(tmpfile);
+        if (rc != 0 || !file_exists(dst)) return 0;
+    }
+    if (sha[0]) {
+        char got[128] = {0};
+        if (!sb_sha256_file(dst, got, sizeof(got)) || strcmp(got, sha) != 0) {
+            unlink(dst);
+            fprintf(stderr, "sb: sha256 mismatch for '%s' (registry)\n", pkg);
+            return 0;
+        }
+    }
+    printf("  %s -> %s (from registry %s)\n", pkg, dst, SB_REGISTRY_BASE);
+    return 1;
+}
+
 static int handle_install(int argc, char **argv) {
     if (argc < 3) {
         fprintf(stderr, "Usage: sb install <package>\n       sb install .\n");
@@ -245,7 +387,10 @@ static int handle_install(int argc, char **argv) {
         char tmpdir[256];
         snprintf(tmpdir, sizeof(tmpdir), "/tmp/sb_pkg_%d", getpid());
         char cmd[1024];
-        snprintf(cmd, sizeof(cmd), "git clone --depth 1 '%s' '%s' 2>&1 | tail -1", url, tmpdir);
+        if (ver && ver[0])
+            snprintf(cmd, sizeof(cmd), "git clone --depth 1 --branch 'v%s' '%s' '%s' 2>&1 | tail -1 || git clone --depth 1 '%s' '%s' 2>&1 | tail -1", ver, url, tmpdir, url, tmpdir);
+        else
+            snprintf(cmd, sizeof(cmd), "git clone --depth 1 '%s' '%s' 2>&1 | tail -1", url, tmpdir);
         if (system(cmd) != 0) { fprintf(stderr, "sb: git clone failed\n"); return 1; }
         int copied = 0;
         DIR *d = opendir(tmpdir);
@@ -288,6 +433,9 @@ static int handle_install(int argc, char **argv) {
         printf("  %s -> %s (from ./std)\n", pkg, dst);
         return 0;
     }
+    // v1.25.0: local registry tgz, then web registry (shimbabomb.pages.dev)
+    if (sb_try_local_registry(pkg, ver, dst)) return 0;
+    if (sb_try_pages_registry(pkg, ver, dst)) return 0;
     // fallback: try remote via curl (if network)
     char url[1024];
     snprintf(url, sizeof(url), "https://raw.githubusercontent.com/shimbabomb/std/main/%s.sb", pkg);
@@ -373,7 +521,7 @@ static int handle_update(void) {
 }
 
 static void print_help(void) {
-    char ver[32] = "v1.17.0";
+    char ver[32] = "unknown";
     char vpath[1024];
     FILE *vf = fopen("VERSION", "rb");
     if (!vf) {
@@ -399,6 +547,10 @@ static void print_help(void) {
     printf("  sb                       REPL with history, try 'help'\n");
     printf("  sb update                Auto-update to latest release from GitHub\n");
     printf("  sb install <pkg>         Install package to sb_modules/\n");
+    printf("  sb add <pkg>             Alias for install\n");
+    printf("  sb add lib <pkg>         Alias for install\n");
+    printf("  sb -b <pkg> [more...]    Bring lib(s) to sb_modules/ (short for install)\n");
+    printf("  sb -b lib <pkg>          Same, with lib infix (like sb add lib)\n");
     printf("  sb install .             Install from shimba.toml/sb.toml [dependencies]\n");
     printf("  sb build <file>          Compile to binary (see sb-build)\n");
     printf("  sb init                  Scaffold a new project\n");
@@ -1187,16 +1339,26 @@ static int handle_publish(int argc, char **argv) {
     free(content);
 
     if (argc >= 3 && strcmp(argv[2], "--dry-run") == 0) {
-        printf("Would publish %s v%s from %s\n", name, version, manifest);
+        printf("Would publish %s v%s from %s to ~/.shimbabomb/registry\n", name, version, manifest);
         return 0;
     }
+    // always publish to local registry (~/.shimbabomb/registry) even without git
+    char regdir[1024];
+    const char *home = getenv("HOME");
+    if (home) {
+        snprintf(regdir, sizeof(regdir), "%s/.shimbabomb/registry", home);
+        char cmd2[2048];
+        snprintf(cmd2, sizeof(cmd2), "mkdir -p '%s' 2>/dev/null; tar czf '%s/%s-%s.tgz' --exclude='.git' --exclude='*.deb' --exclude='*.tgz' . 2>/dev/null && echo \"Registry: %s/%s-%s.tgz\"", regdir, regdir, name, version, regdir, name, version);
+        system(cmd2);
+    }
     if (!file_exists(".git")) {
-        fprintf(stderr, "sb publish: not a git repo. Run 'git init' first.\n");
-        return 1;
+        printf("Published %s v%s to registry (no git repo, skipping git tag)\n", name, version);
+        printf("Install: sb install %s\n", name);
+        return 0;
     }
     char tag[128];
     snprintf(tag, sizeof(tag), "v%s", version);
-    printf("Publishing %s %s...\n", name, version);
+    printf("Publishing %s %s to registry + git...\n", name, version);
     char cmd[1024];
     snprintf(cmd, sizeof(cmd), "git add -A && git commit -m 'release %s' --allow-empty 2>&1 | tail -1", tag);
     system(cmd);
@@ -1407,11 +1569,78 @@ int main(int argc, char **argv) {
     }
 #endif
 
+    if (argc >= 2 && (strcmp(argv[1], "--version")==0 || strcmp(argv[1], "-v")==0 || strcmp(argv[1], "version")==0 || strcmp(argv[1], "--Version")==0)) {
+        char ver[32]="unknown";
+        FILE *vf=fopen("VERSION","rb");
+        if(!vf){ char vpath[1024]; snprintf(vpath,sizeof(vpath),"%s/VERSION",SB_SRC_DIR); vf=fopen(vpath,"rb"); }
+#ifndef _WIN32
+        if(!vf){ char exe_path[1024]; ssize_t len=readlink("/proc/self/exe",exe_path,sizeof(exe_path)-1); if(len>0){ exe_path[len]='\0'; char *slash=strrchr(exe_path,'/'); if(slash){ *slash='\0'; char vp[1024]; snprintf(vp,sizeof(vp),"%s/../share/shimbabomb/VERSION",exe_path); vf=fopen(vp,"rb"); if(!vf) { snprintf(vp,sizeof(vp),"%s/../../VERSION",exe_path); vf=fopen(vp,"rb"); } } } }
+#endif
+        if(vf){ if(fgets(ver,sizeof(ver),vf)) ver[strcspn(ver,"\r\n")]='\0'; fclose(vf); }
+        printf("%s\n",ver);
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "--parse-only")==0) {
+        const char *path = NULL;
+        int want_json = 0;
+        for (int i=2;i<argc;i++) if (strcmp(argv[i],"--json")==0) want_json=1; else if (!path) path=argv[i];
+        if (!path) { fprintf(stderr,"Usage: sb --parse-only <file> [--json]\n"); return 1; }
+        char *src = read_file(path);
+        Parser p; parser_init(&p, src);
+        AstNode *prog = parser_parse(&p);
+        if (p.had_error) {
+            if (want_json) printf("{\"ok\":false,\"file\":\"%s\",\"error\":\"%s\"}\n", path, p.error_msg);
+            else fprintf(stderr,"sb: parse error in %s: %s\n", path, p.error_msg);
+            free(src); node_free(prog);
+            return 1;
+        }
+        if (want_json) printf("{\"ok\":true,\"file\":\"%s\"}\n", path);
+        else printf("ok\n");
+        free(src); node_free(prog);
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "update") == 0) {
         return handle_update();
     }
-    if (argc >= 2 && strcmp(argv[1], "install") == 0) {
+    if (argc >= 2 && (strcmp(argv[1], "install") == 0 || strcmp(argv[1], "add") == 0)) {
+        // allow `sb add lib <pkg>` → `sb install <pkg>`
+        if (argc >= 3 && strcmp(argv[1], "add") == 0 && strcmp(argv[2], "lib") == 0) {
+            if (argc >= 4) { argv[2] = argv[3]; argc--; }
+            else { fprintf(stderr,"Usage: sb add lib <package>\n"); return 1; }
+        }
+        // normalize `sb add <pkg>` to install
+        if (strcmp(argv[1], "add") == 0) argv[1] = "install";
         return handle_install(argc, argv);
+    }
+    // v1.25.0: `sb -b` = bring/install lib(s). Supports `sb -b <pkg> [more...]`,
+    // `sb -b lib <pkg>`, `sb -b foo@1.2.3`, `sb -b .`. Only triggers as argv[1]
+    // so `sb file.sb -b` style run-flags are untouched.
+    if (argc >= 2 && strcmp(argv[1], "-b") == 0) {
+        int start = 2;
+        if (argc >= 3 && strcmp(argv[2], "lib") == 0) start = 3;
+        if (start >= argc) {
+            fprintf(stderr, "Usage: sb -b <package> [more...]\n       sb -b lib <package>\n       sb -b foo@1.2.3\n       sb -b .\n");
+            return 1;
+        }
+        if (strcmp(argv[start], "--help") == 0 || strcmp(argv[start], "-h") == 0) {
+            printf("Usage: sb -b <package> [more...]\n       sb -b lib <package>\n");
+            printf("Bring lib(s) into sb_modules/ (short for sb install).\n");
+            printf("Resolves: sb_modules/ -> std/ -> local registry -> web registry (%s) -> remote std.\n", SB_REGISTRY_BASE);
+            return 0;
+        }
+        int rc = 0;
+        for (int i = start; i < argc; i++) {
+            if (argv[i][0] == '-' ) {
+                fprintf(stderr, "sb -b: unknown option '%s'\n", argv[i]);
+                rc = 1;
+                break;
+            }
+            char *fake[] = { argv[0], "install", argv[i], NULL };
+            int r = handle_install(3, fake);
+            if (r != 0) rc = r;
+        }
+        if (rc == 0) printf("Brought %d package(s) into sb_modules/\n", argc - start);
+        return rc;
     }
     if (argc >= 2 && strcmp(argv[1], "init") == 0) {
         return handle_init();

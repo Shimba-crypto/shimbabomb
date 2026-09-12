@@ -7,6 +7,9 @@
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 #if defined(_WIN32)
 #define SB_NO_GUI 1
@@ -670,6 +673,67 @@ static Value native_reverse_str(int argc, Value *args) {
     Value v = val_string(buf); free(buf); return v;
 }
 
+static Value native_substr(int argc, Value *args) {
+    if (argc < 2 || args[0].type != VAL_STRING || args[1].type != VAL_NUMBER) return val_string("");
+    const char *s = args[0].as.string;
+    int slen = strlen(s);
+    int start = (int)args[1].as.number;
+    int n = (argc >= 3 && args[2].type == VAL_NUMBER) ? (int)args[2].as.number : slen - start;
+    if (start < 0) start = slen + start;
+    if (start < 0) start = 0;
+    if (start > slen) start = slen;
+    if (n < 0) n = 0;
+    if (start + n > slen) n = slen - start;
+    char *buf = malloc(n + 1);
+    memcpy(buf, s + start, n);
+    buf[n] = '\0';
+    Value v = val_string(buf); free(buf); return v;
+}
+
+static Value native_floor(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_number(0);
+    double v = args[0].as.number;
+    return val_number(floor(v));
+}
+
+static Value native_ceil(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_number(0);
+    double v = args[0].as.number;
+    return val_number(ceil(v));
+}
+
+static Value native_round(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_number(0);
+    double v = args[0].as.number;
+    return val_number(round(v));
+}
+
+static Value native_range(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_array();
+    double a = args[0].as.number;
+    double b = (argc >= 2 && args[1].type == VAL_NUMBER) ? args[1].as.number : a;
+    double step = (argc >= 3 && args[2].type == VAL_NUMBER) ? args[2].as.number : 1;
+    if (argc == 1) { b = a; a = 0; }
+    if (step == 0) step = 1;
+    Value arr = val_array();
+    if (step > 0) {
+        for (double v = a; v < b; v += step) {
+            Value nv = val_number(v);
+            val_array_push(&arr.as.array, nv);
+            val_free(&nv);
+            if (arr.as.array.count > 100000) break;
+        }
+    } else {
+        for (double v = a; v > b; v += step) {
+            Value nv = val_number(v);
+            val_array_push(&arr.as.array, nv);
+            val_free(&nv);
+            if (arr.as.array.count > 100000) break;
+        }
+    }
+    return arr;
+}
+
 static Value native_sort_array(int argc, Value *args) {
     if (argc < 1 || args[0].type != VAL_ARRAY) return val_array();
     Value sorted = val_copy(args[0]);
@@ -694,6 +758,46 @@ static Value native_has(int argc, Value *args) {
         if (it.type==VAL_STRING && args[1].type==VAL_STRING && strcmp(it.as.string, args[1].as.string)==0) return val_bool(1);
     }
     return val_bool(0);
+}
+
+static Value native_c_matmul(int argc, Value *args) {
+    if (argc < 2 || args[0].type != VAL_MAP || args[1].type != VAL_MAP)
+        return val_need_args("c_matmul", "two tensors {shape:[r,c], data:[...]}");
+    Value sa = val_map_get(&args[0], "shape");
+    Value sb = val_map_get(&args[1], "shape");
+    Value da = val_map_get(&args[0], "data");
+    Value db = val_map_get(&args[1], "data");
+    if (sa.type != VAL_ARRAY || sb.type != VAL_ARRAY || da.type != VAL_ARRAY || db.type != VAL_ARRAY)
+        return val_error_code("c_matmul: bad tensor", ERR_TYPE_MISMATCH);
+    int m = (int)sa.as.array.items[0].as.number;
+    int k = (int)sa.as.array.items[1].as.number;
+    int k2 = (int)sb.as.array.items[0].as.number;
+    int n = (int)sb.as.array.items[1].as.number;
+    if (k != k2) return val_error_code("c_matmul: shape mismatch k", ERR_TYPE_MISMATCH);
+    Value out = val_array();
+    // pre-transpose b for cache friendliness (like SB does)
+    // b is k x n, bt is n x k
+    double *bt = malloc(sizeof(double)*k*n);
+    for (int j=0;j<n;j++) for (int i=0;i<k;i++) bt[j*k+i] = db.as.array.items[i*n+j].as.number;
+    for (int i=0;i<m;i++) {
+        for (int j=0;j<n;j++) {
+            double acc=0;
+            for (int kk=0;kk<k;kk++) {
+                double av = da.as.array.items[i*k+kk].as.number;
+                double bv = bt[j*k+kk];
+                acc += av*bv;
+            }
+            val_array_push(&out.as.array, val_number(acc));
+        }
+    }
+    free(bt);
+    Value shp = val_array();
+    val_array_push(&shp.as.array, val_number(m));
+    val_array_push(&shp.as.array, val_number(n));
+    Value res = val_map();
+    val_map_set(&res, "shape", shp);
+    val_map_set(&res, "data", out);
+    return res;
 }
 
 static Value native_read_file(int argc, Value *args) {
@@ -1647,6 +1751,56 @@ static Value native_read_csv(int argc, Value *args) {
     return rows;
 }
 
+// ── sometui — terminal I/O primitives ────────────────────────────────
+
+static struct termios tui_orig_termios;
+static int tui_raw_mode = 0;
+
+static Value native_tui_raw(int argc, Value *args) {
+    (void)argc; (void)args;
+    if (tui_raw_mode) return val_nil();
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &tui_orig_termios);
+    raw = tui_orig_termios;
+    raw.c_lflag &= ~(ECHO | ICANON | ISIG);
+    raw.c_iflag &= ~(IXON | ICRNL);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    tui_raw_mode = 1;
+    return val_nil();
+}
+
+static Value native_tui_cooked(int argc, Value *args) {
+    (void)argc; (void)args;
+    if (!tui_raw_mode) return val_nil();
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &tui_orig_termios);
+    tui_raw_mode = 0;
+    return val_nil();
+}
+
+static Value native_tui_read(int argc, Value *args) {
+    (void)argc; (void)args;
+    unsigned char c;
+    int n = read(STDIN_FILENO, &c, 1);
+    if (n == 1) return val_number(c);
+    return val_number(-1);
+}
+
+static Value native_tui_size(int argc, Value *args) {
+    (void)argc; (void)args;
+    struct winsize ws;
+    int w = 80, h = 24;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1) {
+        w = ws.ws_col;
+        h = ws.ws_row;
+    }
+    Value m = val_map();
+    val_map_set(&m, "w", val_number(w));
+    val_map_set(&m, "h", val_number(h));
+    return m;
+}
+
 // ── Class support ────────────────────────────────────────────────────
 
 static Value interp_eval_class(Interpreter *interp, Environment *env, AstNode *node) {
@@ -2245,6 +2399,9 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                 if (i >= 0 && i < slot->as.array.count) {
                     val_free(&slot->as.array.items[i]);
                     slot->as.array.items[i] = val_copy(val);
+                } else {
+                    char msg[128]; snprintf(msg,sizeof(msg),"index %d out of bounds (size %d)", i, slot->as.array.count);
+                    interp_error(interp, node->line, msg);
                 }
             } else {
                 interp_error(interp, node->line, "cannot assign to this index");
@@ -2442,7 +2599,13 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "replace",    val_native(native_replace_str,"replace"));
     env_set(interp->global, "find",       val_native(native_find_str,   "find"));
     env_set(interp->global, "reverse",    val_native(native_reverse_str,"reverse"));
+    env_set(interp->global, "substr",     val_native(native_substr,     "substr"));
+    env_set(interp->global, "floor",      val_native(native_floor,      "floor"));
+    env_set(interp->global, "ceil",       val_native(native_ceil,       "ceil"));
+    env_set(interp->global, "round",      val_native(native_round,      "round"));
+    env_set(interp->global, "range",      val_native(native_range,      "range"));
     env_set(interp->global, "sort",       val_native(native_sort_array, "sort"));
+    env_set(interp->global, "c_matmul",   val_native(native_c_matmul,   "c_matmul"));
     env_set(interp->global, "has",        val_native(native_has,        "has"));
     env_set(interp->global, "sin",        val_native(native_sin,        "sin"));
     env_set(interp->global, "cos",        val_native(native_cos,        "cos"));
@@ -2498,6 +2661,11 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "parse_json", val_native(native_parse_json, "parse_json"));
     env_set(interp->global, "to_json",    val_native(native_to_json,    "to_json"));
     env_set(interp->global, "read_csv",   val_native(native_read_csv,   "read_csv"));
+    /* sometui — terminal I/O primitives */
+    env_set(interp->global, "tui_raw",    val_native(native_tui_raw,    "tui_raw"));
+    env_set(interp->global, "tui_cooked", val_native(native_tui_cooked, "tui_cooked"));
+    env_set(interp->global, "tui_read",   val_native(native_tui_read,   "tui_read"));
+    env_set(interp->global, "tui_size",   val_native(native_tui_size,   "tui_size"));
     env_set(interp->global, "serve",      val_native(native_serve,      "serve"));
 }
 

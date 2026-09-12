@@ -1,0 +1,391 @@
+SB
+## sometui — pure terminal TUI toolkit (no X11/Ketiwe)
+## Provides: tui_box, tui_text, tui_fill, tui_color, tui_move, tui_clear,
+##           tui_cursor, tui_bold, tui_dim, tui_underline, tui_blink, tui_invert,
+##           tui_bg, tui_fg_rgb, tui_bg_rgb, tui_mouse_on, tui_mouse_off,
+##           tui_input, tui_event_loop, tui_app,
+##           tui_button, tui_list, tui_label, tui_separator, tui_progress,
+##           tui_panel, tui_dialog, tui_menu_bar, tui_status_bar, tui_tabs
+## Uses: tui_raw, tui_cooked, tui_read, tui_size (C natives)
+
+## — ANSI escape helpers ———————————————————————————————————————————————
+
+define esc with s as
+  give back "\033[" plus s.
+end
+
+## — cursor / screen control ———————————————————————————————————————————
+
+define tui_clear with as
+  print esc with "2J".
+  tui_move with 1 and 1.
+end
+
+define tui_move with row and col as
+  print esc with to_string with row plus ";" plus to_string with col plus "H".
+end
+
+define tui_cursor with on_off as
+  if on_off is 1 then
+    print esc with "?25h".
+  end
+  if on_off is 0 then
+    print esc with "?25l".
+  end
+end
+
+## — colors (16-color) —————————————————————————————————————————————————
+## 0=black 1=red 2=green 3=yellow 4=blue 5=magenta 6=cyan 7=white
+## 8-15 = bright variants
+
+define tui_fg with c as
+  print esc with to_string with 30 plus c plus "m".
+end
+
+define tui_bg with c as
+  print esc with to_string with 40 plus c plus "m".
+end
+
+define tui_fg_bright with c as
+  print esc with to_string with 90 plus c plus "m".
+end
+
+define tui_bg_bright with c as
+  print esc with to_string with 100 plus c plus "m".
+end
+
+## — 256-color ———————————————————————————————————————————————————————
+
+define tui_fg_256 with n as
+  print esc with "38;5;" plus to_string with n plus "m".
+end
+
+define tui_bg_256 with n as
+  print esc with "48;5;" plus to_string with n plus "m".
+end
+
+## — truecolor (24-bit) —————————————————————————————————————————————
+
+define tui_fg_rgb with r and g and b as
+  print esc with "38;2;" plus to_string with r plus ";" plus to_string with g plus ";" plus to_string with b plus "m".
+end
+
+define tui_bg_rgb with r and g and b as
+  print esc with "48;2;" plus to_string with r plus ";" plus to_string with g plus ";" plus to_string with b plus "m".
+end
+
+## — text attributes —————————————————————————————————————————————————
+
+define tui_reset with as
+  print esc with "0m".
+end
+
+define tui_bold with as
+  print esc with "1m".
+end
+
+define tui_dim with as
+  print esc with "2m".
+end
+
+define tui_underline with as
+  print esc with "4m".
+end
+
+define tui_blink with as
+  print esc with "5m".
+end
+
+define tui_invert with as
+  print esc with "7m".
+end
+
+define tui_strikethrough with as
+  print esc with "9m".
+end
+
+## — raw drawing —————————————————————————————————————————————————————
+
+define tui_fill with ch as
+  ## fill entire screen with character
+  set sz to tui_size with.
+  set w to sz["w"].
+  set h to sz["h"].
+  set r to 1.
+  while not (r is greater than h) then
+    tui_move with r and 1.
+    set c to 1.
+    while not (c is greater than w) then
+      print ch.
+      set c to c plus 1.
+    end
+    set r to r plus 1.
+  end
+end
+
+define tui_text with row and col and text as
+  tui_move with row and col.
+  print text.
+end
+
+define tui_hline with row and col and len and ch as
+  tui_move with row and col.
+  set i to 0.
+  while i is less than len then
+    print ch.
+    set i to i plus 1.
+  end
+end
+
+define tui_vline with row and col and len and ch as
+  set i to 0.
+  while i is less than len then
+    tui_move with row plus i and col.
+    print ch.
+    set i to i plus 1.
+  end
+end
+
+## — box drawing ———————————————————————————————————————————————————
+## chars: "─│┌┐└┘├┤┬┴┼" (or use "+" "-" "|" for ASCII fallback)
+
+define tui_box with row and col and w and h as
+  ## top
+  tui_move with row and col.
+  print "┌".
+  set i to 1.
+  while i is less than w minus 1 then
+    print "─".
+    set i to i plus 1.
+  end
+  print "┐".
+  ## sides
+  set r to 1.
+  while r is less than h minus 1 then
+    tui_move with row plus r and col.
+    print "│".
+    tui_move with row plus r and (col plus w minus 1).
+    print "│".
+    set r to r plus 1.
+  end
+  ## bottom
+  tui_move with row plus h minus 1 and col.
+  print "└".
+  set i to 1.
+  while i is less than w minus 1 then
+    print "─".
+    set i to i plus 1.
+  end
+  print "┘".
+end
+
+define tui_box_double with row and col and w and h as
+  tui_move with row and col.
+  print "╔".
+  set i to 1.
+  while i is less than w minus 1 then
+    print "═".
+    set i to i plus 1.
+  end
+  print "╗".
+  set r to 1.
+  while r is less than h minus 1 then
+    tui_move with row plus r and col.
+    print "║".
+    tui_move with row plus r and (col plus w minus 1).
+    print "║".
+    set r to r plus 1.
+  end
+  tui_move with row plus h minus 1 and col.
+  print "╚".
+  set i to 1.
+  while i is less than w minus 1 then
+    print "═".
+    set i to i plus 1.
+  end
+  print "╝".
+end
+
+define tui_box_filled with row and col and w and h and fg and bg as
+  tui_fg with fg.
+  tui_bg with bg.
+  tui_box with row and col and w and h.
+  ## fill interior
+  set r to 1.
+  while r is less than h minus 1 then
+    set c to 1.
+    while c is less than w minus 1 then
+      tui_move with row plus r and (col plus c).
+      print " ".
+      set c to c plus 1.
+    end
+    set r to r plus 1.
+  end
+  tui_reset with.
+end
+
+## — widgets ———————————————————————————————————————————————————————
+
+define tui_label with row and col and text and fg as
+  tui_fg with fg.
+  tui_text with row and col and text.
+  tui_reset with.
+end
+
+define tui_separator with row and col and len as
+  tui_hline with row and col and len and "─".
+end
+
+define tui_button with row and col and label and active as
+  if active is 1 then
+    tui_invert with.
+  end
+  tui_text with row and col and "[" plus label plus "]".
+  tui_reset with.
+end
+
+define tui_progress with row and col and w and pct as
+  ## pct = 0..100
+  set filled to (w minus 2) times pct divided by 100.
+  tui_text with row and col and "[".
+  set i to 0.
+  while i is less than w minus 2 then
+    if i is less than filled then
+      tui_fg with 2.
+      print "█".
+      tui_reset with.
+    end
+    if not (i is less than filled) then
+      tui_fg with 8.
+      print "░".
+      tui_reset with.
+    end
+    set i to i plus 1.
+  end
+  tui_text with row and (col plus w minus 1) and "]".
+end
+
+define tui_list with row and col and w and items and selected as
+  ## items = list of strings, selected = index (0-based)
+  set cnt to length with items.
+  set i to 0.
+  while i is less than cnt then
+    if i is selected then
+      tui_invert with.
+    end
+    tui_move with row plus i and col.
+    set item_text to item with i and items.
+    ## pad/truncate to width
+    set pad to w minus 2.
+    set txt to item_text.
+    set tl to length with txt.
+    while tl is less than pad then
+      set txt to txt plus " ".
+      set tl to tl plus 1.
+    end
+    print " " plus txt.
+    tui_reset with.
+    set i to i plus 1.
+  end
+end
+
+define tui_panel with row and col and w and h and title as
+  tui_box with row and col and w and h.
+  set tl to length with title.
+  set tw to tl plus 2.
+  set tx to col plus (w minus tw) divided by 2.
+  tui_text with row and tx and " " plus title plus " ".
+end
+
+define tui_tabs with row and col and tabs and active as
+  ## tabs = list of strings, active = index
+  set cnt to length with tabs.
+  set cx to col.
+  set i to 0.
+  while i is less than cnt then
+    set t to item with i and tabs.
+    set tl to length with t.
+    if i is active then
+      tui_bold with.
+      tui_text with row and cx and " " plus t plus " ".
+      tui_reset with.
+    end
+    if not (i is active) then
+      tui_dim with.
+      tui_text with row and cx and " " plus t plus " ".
+      tui_reset with.
+    end
+    set cx to cx plus tl plus 2.
+    set i to i plus 1.
+  end
+end
+
+define tui_status_bar with row and col and w and text and fg and bg as
+  tui_move with row and col.
+  tui_fg with fg.
+  tui_bg with bg.
+  set i to 0.
+  while i is less than w then
+    if i is less than length with text then
+      print item with i and text.
+    end
+    if not (i is less than length with text) then
+      print " ".
+    end
+    set i to i plus 1.
+  end
+  tui_reset with.
+end
+
+define tui_dialog with row and col and w and h and title and msg as
+  tui_panel with row and col and w and h and title.
+  tui_text with row plus 2 and (col plus 2) and msg.
+  tui_button with (row plus h minus 2) and (col plus (w minus 8) divided by 2) and "  OK  " and 1.
+end
+
+## — mouse support —————————————————————————————————————————————————
+
+define tui_mouse_on with as
+  print esc with "?1000h".
+  print esc with "?1006h".
+end
+
+define tui_mouse_off with as
+  print esc with "?1000l".
+  print esc with "?1006l".
+end
+
+## — event loop ———————————————————————————————————————————————————
+## tui_event_loop calls a user function each frame with the pressed key (-1 if none)
+
+define tui_app with title and update_fn as
+  tui_cursor with 0.
+  tui_clear with.
+  tui_bold with.
+  tui_text with 1 and 1 and title.
+  tui_reset with.
+  tui_raw with.
+  ## event loop: ~30fps
+  while 1 is 1 then
+    set key to tui_read with.
+    ## q quits
+    if key is 113 then
+      tui_cooked with.
+      tui_cursor with 1.
+      tui_clear with.
+      give back key.
+    end
+    update_fn with key.
+  end
+  tui_cooked with.
+  tui_cursor with 1.
+end
+
+## — restore terminal —————————————————————————————————————————————
+
+define tui_quit with as
+  tui_cooked with.
+  tui_cursor with 1.
+  tui_clear with.
+  tui_reset with.
+end

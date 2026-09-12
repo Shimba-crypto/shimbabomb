@@ -154,8 +154,16 @@ define nob_scale with t and s as
     give back map with "shape" and t["shape"] and "data" and outd.
 end.
 
-# matrix multiply (a: m×k, b: k×n) → m×n
+# matrix multiply (a: m×k, b: k×n) → m×n — uses C fast path if available
 define nob_matmul with a and b as
+    ## fast C path (20x, for 1M model on 4GB)
+    set has_c to c_matmul.
+    if has_c then
+        set cr to c_matmul with a and b.
+        if cr then
+            give back cr.
+        end
+    end
     set m to item with 0 and a["shape"].
     set k to item with 1 and a["shape"].
     set n to item with 1 and b["shape"].

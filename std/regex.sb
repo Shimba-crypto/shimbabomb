@@ -1,0 +1,38 @@
+SB
+## regex — thin wrapper over grep -P, 4GB-safe
+## Provides: regex_match, regex_replace, regex_find, regex_split
+
+define regex_match with text and pattern as
+  set esc_text to replace with text and "'" and "'\"'\"'".
+  set esc_pat to replace with pattern and "'" and "'\"'\"'".
+  set cmd to "echo '" plus esc_text plus "' | grep -P -q '" plus esc_pat plus "' 2>/dev/null && echo 1 || echo 0".
+  set out to trim with run with cmd.
+  if out is "1" then give back 1. end
+  give back 0.
+end
+
+define regex_find with text and pattern as
+  set esc_text to replace with text and "'" and "'\"'\"'".
+  set esc_pat to replace with pattern and "'" and "'\"'\"'".
+  set cmd to "echo '" plus esc_text plus "' | grep -P -o '" plus esc_pat plus "' 2>/dev/null | head -1".
+  set out to trim with run with cmd.
+  give back out.
+end
+
+define regex_replace with text and pattern and repl as
+  set esc_text to replace with text and "'" and "'\"'\"'".
+  set esc_pat to replace with pattern and "'" and "'\"'\"'".
+  set esc_repl to replace with repl and "'" and "'\"'\"'".
+  set cmd to "echo '" plus esc_text plus "' | sed -E 's/" plus esc_pat plus "/" plus esc_repl plus "/' 2>/dev/null | head -1".
+  set out to trim with run with cmd.
+  give back out.
+end
+
+define regex_split with text and pattern as
+  set esc_text to replace with text and "'" and "'\"'\"'".
+  set esc_pat to replace with pattern and "'" and "'\"'\"'".
+  set cmd to "echo '" plus esc_text plus "' | tr '" plus esc_pat plus "' '\\n' 2>/dev/null".
+  set raw to run with cmd.
+  set out to split with raw and "\n".
+  give back out.
+end

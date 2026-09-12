@@ -1,0 +1,36 @@
+SB
+## compress — gzip/zip via run, 4GB-safe
+## Provides: gzip, gunzip, zip, unzip, compress_file, decompress_file
+
+define gzip_str with text as
+  set esc to replace with text and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc plus "' | gzip -c 2>/dev/null | base64 -w0 2>/dev/null | tr -d '\n'".
+  give back out.
+end
+
+define gunzip_str with b64 as
+  set esc to replace with b64 and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc plus "' | base64 -d 2>/dev/null | gzip -dc 2>/dev/null | tr -d '\n'".
+  give back out.
+end
+
+define compress_file with src and dst as
+  set out to run with "gzip -c '" plus src plus "' > '" plus dst plus "' 2>&1 | head -1".
+  give back out.
+end
+
+define decompress_file with src and dst as
+  set out to run with "gzip -dc '" plus src plus "' > '" plus dst plus "' 2>&1 | head -1".
+  give back out.
+end
+
+define zip_files with files and outzip as
+  set flist to join with files and " ".
+  set out to run with "zip -j '" plus outzip plus "' " plus flist plus " 2>&1 | head -3".
+  give back out.
+end
+
+define unzip_file with zipfile and dest as
+  set out to run with "unzip -o '" plus zipfile plus "' -d '" plus dest plus "' 2>&1 | head -5".
+  give back out.
+end

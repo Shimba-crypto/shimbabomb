@@ -1,0 +1,39 @@
+SB
+## csv2 — streaming csv (v2), 4GB-safe, wraps read_csv + chunking
+## Provides: csv_stream, csv_chunk, csv_filter
+
+define csv_stream with path as
+  give back read_csv with path.
+end
+
+define csv_chunk with rows and size as
+  set out to list with.
+  set mycur to list with.
+  set n to length with rows.
+  count i from 0 to n minus 1 then
+    set row to item with i and rows.
+    add_to with mycur and row.
+    set mymod to i plus 1.
+    set q to mymod divided evenly by size.
+    set q to q times size.
+    if q is mymod then
+      add_to with out and mycur.
+      set mycur to list with.
+    end
+  end
+  if length with mycur is greater than 0 then
+    add_to with out and mycur.
+  end
+  give back out.
+end
+
+define csv_filter with rows and col and val as
+  set out to list with.
+  loop row through rows then
+    set cell to item with col and row.
+    if cell is val then
+      add_to with out and row.
+    end
+  end
+  give back out.
+end

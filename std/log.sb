@@ -1,0 +1,45 @@
+SB
+## log — leveled logging, 4GB-safe
+## Provides: log_debug, log_info, log_warn, log_error, log_level, log_to_file
+
+set LOG_LEVEL to list with 1.
+set LOG_FILE to list with "".
+
+define log_level with lvl as
+  ## 0=debug 1=info 2=warn 3=error
+  set LOG_LEVEL[0] to lvl.
+end
+
+define log_to_file with path as
+  set LOG_FILE[0] to path.
+end
+
+define _log with lvl and prefix and msg as
+  set cur to item with 0 and LOG_LEVEL.
+  if lvl is less than cur then
+    give back 0.
+  end
+  set line to prefix plus " " plus msg.
+  say line.
+  set fp to item with 0 and LOG_FILE.
+  if length with fp is greater than 0 then
+    set esc to replace with line and "'" and "'\"'\"'".
+    run with "echo '" plus esc plus "' >> '" plus fp plus "' 2>/dev/null".
+  end
+end
+
+define log_debug with msg as
+  _log with 0 and "[DEBUG]" and msg.
+end
+
+define log_info with msg as
+  _log with 1 and "[INFO]" and msg.
+end
+
+define log_warn with msg as
+  _log with 2 and "[WARN]" and msg.
+end
+
+define log_error with msg as
+  _log with 3 and "[ERROR]" and msg.
+end

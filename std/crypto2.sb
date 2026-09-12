@@ -1,0 +1,42 @@
+SB
+## crypto2 — sha256/hmac/aes via openssl, 4GB-safe
+## Provides: sha256, hmac_sha256, aes_encrypt, aes_decrypt, b64_encode, b64_decode
+
+define sha256 with text as
+  set esc to replace with text and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc plus "' | openssl dgst -sha256 2>/dev/null | awk '{print $2}' | tr -d '\n'".
+  give back out.
+end
+
+define hmac_sha256 with text and key as
+  set esc_t to replace with text and "'" and "'\"'\"'".
+  set esc_k to replace with key and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc_t plus "' | openssl dgst -sha256 -hmac '" plus esc_k plus "' 2>/dev/null | awk '{print $2}' | tr -d '\n'".
+  give back out.
+end
+
+define b64_encode with text as
+  set esc to replace with text and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc plus "' | base64 -w0 2>/dev/null | tr -d '\n'".
+  give back out.
+end
+
+define b64_decode with text as
+  set esc to replace with text and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc plus "' | base64 -d 2>/dev/null | tr -d '\n'".
+  give back out.
+end
+
+define aes_encrypt with text and key as
+  set esc_t to replace with text and "'" and "'\"'\"'".
+  set esc_k to replace with key and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc_t plus "' | openssl enc -aes-256-cbc -a -salt -pass pass:'" plus esc_k plus "' 2>/dev/null | tr -d '\n'".
+  give back out.
+end
+
+define aes_decrypt with text and key as
+  set esc_t to replace with text and "'" and "'\"'\"'".
+  set esc_k to replace with key and "'" and "'\"'\"'".
+  set out to run with "echo -n '" plus esc_t plus "' | openssl enc -d -aes-256-cbc -a -salt -pass pass:'" plus esc_k plus "' 2>/dev/null | tr -d '\n'".
+  give back out.
+end

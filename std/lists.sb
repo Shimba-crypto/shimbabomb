@@ -20,3 +20,36 @@ end
 define contains_item with xs and v as
     give back has with xs and v.
 end
+define uniq with xs as
+    set out to list with.
+    loop x through xs then
+        if has with out and x is 0 then add_to with out and x. end
+    end
+    give back out.
+end
+define chunk with xs and n as
+    set out to list with.
+    set cur to list with.
+    set i to 0.
+    loop x through xs then
+        add_to with cur and x.
+        set i to i plus 1.
+        if i is n then
+            add_to with out and cur.
+            set cur to list with.
+            set i to 0.
+        end
+    end
+    if length with cur is greater than 0 then add_to with out and cur. end
+    give back out.
+end
+define zip with a and b as
+    set out to list with.
+    set n to length with a.
+    if length with b is less than n then set n to length with b. end
+    count i from 0 to n minus 1 then
+        set pair to list with item with i and a and item with i and b.
+        add_to with out and pair.
+    end
+    give back out.
+end

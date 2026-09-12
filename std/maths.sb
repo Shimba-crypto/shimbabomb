@@ -24,3 +24,21 @@ define smaller with a and b as
     end
     give back b.
 end
+define clamp with v and lo and hi as
+    if v is less than lo then give back lo. end
+    if v is greater than hi then give back hi. end
+    give back v.
+end
+define lerp with a and b and t as
+    give back a plus (b minus a) times t.
+end
+define sign with v as
+    if v is greater than 0 then give back 1. end
+    if v is less than 0 then give back 0 minus 1. end
+    give back 0.
+end
+define is_nan with v as
+    ## NaN is the only value not equal to itself
+    if v is not v then give back 1. end
+    give back 0.
+end

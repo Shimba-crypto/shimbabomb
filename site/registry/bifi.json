@@ -1,0 +1,1 @@
+{"name":"bifi","desc":"wifi for sb (nmcli/iw wrapper)","repo":"https://github.com/Shimba-crypto/shimbabomb","latest":"1.0.0","versions":[{"version":"1.0.0","tarballUrl":"https://raw.githubusercontent.com/Shimba-crypto/shimbabomb/main/std/bifi.sb","sha256":"a42ab8ab09efa22393034973feec9a9d321392a41fe116caff3543b7c588ad90","deps":[]}]}

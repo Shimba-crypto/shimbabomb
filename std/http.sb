@@ -1,0 +1,52 @@
+SB
+## http — thin wrapper over fetch (https via curl), 4GB-safe
+## Provides: http_get, http_post, http_put, http_delete, ws_connect
+## https is just http with https:// url (curl handles TLS)
+
+define http_get with url as
+  give back fetch with url.
+end
+
+define http_get_with_headers with url and headers as
+  ## headers is map, ignored for now, curl handles via fetch
+  give back fetch with url.
+end
+
+define http_post with url and body as
+  set cmd to "curl -s -X POST -H 'Content-Type: application/json' -d '" plus body plus "' '" plus url plus "' 2>/dev/null".
+  set out to run with cmd.
+  give back out.
+end
+
+define http_put with url and body as
+  set cmd to "curl -s -X PUT -H 'Content-Type: application/json' -d '" plus body plus "' '" plus url plus "' 2>/dev/null".
+  set out to run with cmd.
+  give back out.
+end
+
+define http_delete with url as
+  set cmd to "curl -s -X DELETE '" plus url plus "' 2>/dev/null".
+  set out to run with cmd.
+  give back out.
+end
+
+define https_get with url as
+  give back http_get with url.
+end
+
+define https_post with url and body as
+  give back http_post with url and body.
+end
+
+## websocket stub (uses curl for now, real ws via serve)
+define ws_connect with url as
+  give back map with "url" and url and "connected" and 1.
+end
+
+define ws_send with ws and msg as
+  give back http_post with ws["url"] and msg.
+end
+
+define ws_close with ws as
+  give back map with "url" and ws["url"] and "connected" and 0.
+end

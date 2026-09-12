@@ -1,0 +1,104 @@
+SB
+## async — spawn/await/chan/select (cooperative, 4GB-safe)
+## Pure SB, no threads yet. API matches future native impl.
+## Provides: spawn, await, chan, chan_send, chan_recv, chan_close, select
+
+set ASYNC_NEXT_ID to list with 0.
+set ASYNC_TASKS to list with.
+
+define spawn with cb and myargs as
+  set id to item with 0 and ASYNC_NEXT_ID.
+  set ASYNC_NEXT_ID[0] to id plus 1.
+  set res to cb with myargs.
+  set mytask to map with "id" and id and "done" and 1 and "result" and res and "cb" and cb.
+  add_to with ASYNC_TASKS and mytask.
+  give back map with "id" and id and "result" and res.
+end
+
+define spawn_fn with cb as
+  ## spawn with no args
+  set id to item with 0 and ASYNC_NEXT_ID.
+  set ASYNC_NEXT_ID[0] to id plus 1.
+  set res to cb with.
+  set mytask to map with "id" and id and "done" and 1 and "result" and res.
+  add_to with ASYNC_TASKS and mytask.
+  give back map with "id" and id and "result" and res.
+end
+
+define await with handle as
+  give back handle["result"].
+end
+
+define await_all with handles as
+  set out to list with.
+  loop h through handles then
+    add_to with out and h["result"].
+  end
+  give back out.
+end
+
+## — chan ————————————————————————————————————————————————————————
+
+set CHAN_NEXT_ID to list with 0.
+set CHAN_MAP to list with.
+
+define chan with cap as
+  set id to item with 0 and CHAN_NEXT_ID.
+  set CHAN_NEXT_ID[0] to id plus 1.
+  set b to list with.
+  set entry to map with "buf" and b and "cap" and cap and "closed" and 0.
+  add_to with CHAN_MAP and entry.
+  give back id.
+end
+
+define chan_send with ch and val as
+  set entry to item with ch and CHAN_MAP.
+  if entry["closed"] is 1 then
+    raise "chan_send: closed chan".
+  end
+  set buf to entry["buf"].
+  add_to with buf and val.
+  set entry["buf"] to buf.
+  set CHAN_MAP[ch] to entry.
+  give back ch.
+end
+
+define chan_recv with ch as
+  set entry to item with ch and CHAN_MAP.
+  set buf to entry["buf"].
+  if length with buf is 0 then
+    give back map with "ok" and 0 and "val" and 0.
+  end
+  set v to item with 0 and buf.
+  remove_from with buf and 0.
+  set entry["buf"] to buf.
+  set CHAN_MAP[ch] to entry.
+  give back map with "ok" and 1 and "val" and v.
+end
+
+define chan_close with ch as
+  set entry to item with ch and CHAN_MAP.
+  set entry["closed"] to 1.
+  set CHAN_MAP[ch] to entry.
+  give back ch.
+end
+
+define chan_len with ch as
+  set entry to item with ch and CHAN_MAP.
+  give back length with entry["buf"].
+end
+
+## — select — pick first ready chan ——————————————————————————————
+
+define select with chans as
+  set n to length with chans.
+  count i from 0 to n minus 1 then
+    set ch to item with i and chans.
+    set entry to item with ch and CHAN_MAP.
+    set buf to entry["buf"].
+    if length with buf is greater than 0 then
+      give back map with "idx" and i and "ch" and ch.
+    end
+  end
+  give back map with "idx" and minus 1 and "ch" and 0.
+end

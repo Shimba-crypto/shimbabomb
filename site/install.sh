@@ -19,6 +19,7 @@ while [ $# -gt 0 ]; do
         --prefix) PREFIX="$2"; shift 2;;
         --no-deps) INSTALL_DEPS=0; shift;;
         --uninstall) UNINSTALL=1; shift;;
+        --version|-v) cat VERSION 2>/dev/null || cat "$SCRIPT_DIR/VERSION" 2>/dev/null || cat "$HOME/.local/share/shimbabomb/VERSION" 2>/dev/null || echo "unknown"; exit 0;;
         --help|-h) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
         *) echo "install.sh: unknown option $1"; exit 1;;
     esac
@@ -141,7 +142,7 @@ cp "$TMPBIN" "$BIN_DIR/sb"
 chmod +x "$BIN_DIR/sb"
 cp "$SRC_DIR"/*.c "$SRC_DIR"/*.h "$DATA_DIR/src/"
 cp "$STD_DIR"/*.sb "$DATA_DIR/std/" 2>/dev/null || true
-cp "$SCRIPT_DIR/VERSION" "$DATA_DIR/VERSION" 2>/dev/null || echo "v1.13.0" > "$DATA_DIR/VERSION"
+cp "$SCRIPT_DIR/VERSION" "$DATA_DIR/VERSION" 2>/dev/null || cp VERSION "$DATA_DIR/VERSION" 2>/dev/null || echo "unknown" > "$DATA_DIR/VERSION"
 
 # bundle vendor libs for self-contained install (makes sb a real self-contained lang)
 VENDOR_LIB="$DATA_DIR/lib"
@@ -178,7 +179,7 @@ case ":$PATH:" in
         ;;
 esac
 
-VER=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "v1.10.0")
+VER=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || cat VERSION 2>/dev/null || cat "$HOME/.local/share/shimbabomb/VERSION" 2>/dev/null || echo "unknown")
 echo ""
 echo "== ShimbaBomb $VER installed =="
 echo "   binary : $BIN_DIR/sb"

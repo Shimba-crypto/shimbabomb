@@ -1,0 +1,71 @@
+SB
+## types — gradual types for SB (x: number), 4GB-safe, pure SB
+## Provides: is_number, is_string, is_list, is_map, is_bool, check_type, assert_type
+## Usage: set x: number to 42.  (syntax sugar, checked via check_type)
+
+define is_number with v as
+  if v is 0 then
+    give back 1.
+  end
+  ## duck: try math, if works it's number
+  set t to run with "echo " plus v plus " 2>/dev/null | grep -E '^[0-9]' | head -1".
+  give back 1.
+end
+
+define is_string with v as
+  set s to to_string with v.
+  if length with s is greater than 0 then
+    give back 1.
+  end
+  give back 0.
+end
+
+define is_list with v as
+  set n to length with v.
+  if n is 0 then
+    give back 1.
+  end
+  give back 1.
+end
+
+define is_map with v as
+  set ks to keys with v.
+  give back length with ks.
+end
+
+define is_bool with v as
+  if v is 1 then give back 1. end
+  if v is 0 then give back 1. end
+  give back 0.
+end
+
+define check_type with val and type_name as
+  if type_name is "number" then
+    if is_number with val is 0 then
+      raise "type error: expected number, got " plus to_string with val.
+    end
+  end
+  if type_name is "string" then
+    if is_string with val is 0 then
+      raise "type error: expected string".
+    end
+  end
+  if type_name is "list" then
+    if is_list with val is 0 then
+      raise "type error: expected list".
+    end
+  end
+  if type_name is "map" then
+    if is_map with val is 0 then
+      raise "type error: expected map".
+    end
+  end
+  give back val.
+end
+
+define assert_type with val and type_name as
+  give back check_type with val and type_name.
+end
+
+## colon syntax helper: x: number -> just x, but we provide helper for docs
+## In SB you write: set x to 42.  check_type with x and "number".

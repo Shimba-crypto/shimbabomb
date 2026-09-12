@@ -1,0 +1,95 @@
+SB
+## bifi — wifi module for sb (bifi = wifi)
+## Wraps nmcli / iw / wpa_cli via run, pure SB, 4GB-safe
+## Provides: bifi_scan, bifi_list, bifi_status, bifi_connect, bifi_disconnect, bifi_on, bifi_off, bifi_info
+
+define bifi_has_nmcli as
+  set out to run with "which nmcli 2>/dev/null".
+  if length with trim with out is 0 then
+    give back 0.
+  end
+  give back 1.
+end
+
+define bifi_scan as
+  if bifi_has_nmcli with is 0 then
+    set out to run with "iw dev 2>/dev/null | head -5".
+    give back out.
+  end
+  set raw to run with "nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list --rescan yes 2>/dev/null | head -20".
+  set lines to split with raw and "\n".
+  set out to list with.
+  loop ln through lines then
+    set t to trim with ln.
+    if length with t is greater than 0 then
+      add_to with out and t.
+    end
+  end
+  give back out.
+end
+
+define bifi_list as
+  give back bifi_scan with.
+end
+
+define bifi_status as
+  if bifi_has_nmcli with is 0 then
+    set out to run with "iwconfig 2>/dev/null | head -10".
+    give back out.
+  end
+  set out to run with "nmcli -t -f NAME,TYPE,DEVICE,STATE con show --active 2>/dev/null | head -20".
+  if length with trim with out is 0 then
+    set out2 to run with "nmcli dev status 2>/dev/null | head -20".
+    give back out2.
+  end
+  give back out.
+end
+
+define bifi_info with iface as
+  set cmd to "nmcli dev show " plus iface plus " 2>/dev/null | head -30".
+  set out to run with cmd.
+  if length with trim with out is 0 then
+    set out2 to run with "iw dev " plus iface plus " info 2>/dev/null | head -20".
+    give back out2.
+  end
+  give back out.
+end
+
+define bifi_connect with ssid and pass as
+  if bifi_has_nmcli with is 0 then
+    give back "bifi: nmcli not found, install network-manager".
+  end
+  if length with pass is 0 then
+    set cmd to "nmcli dev wifi connect \"" plus ssid plus "\" 2>&1 | head -5".
+    set out to run with cmd.
+    give back out.
+  end
+  set cmd to "nmcli dev wifi connect \"" plus ssid plus "\" password \"" plus pass plus "\" 2>&1 | head -5".
+  set out to run with cmd.
+  give back out.
+end
+
+define bifi_disconnect with ssid as
+  set cmd to "nmcli con down \"" plus ssid plus "\" 2>&1 | head -5".
+  set out to run with cmd.
+  give back out.
+end
+
+define bifi_on as
+  set out to run with "nmcli radio wifi on 2>&1 | head -3".
+  give back out.
+end
+
+define bifi_off as
+  set out to run with "nmcli radio wifi off 2>&1 | head -3".
+  give back out.
+end
+
+define bifi_is_on as
+  set out to run with "nmcli radio wifi 2>/dev/null | head -1".
+  set t to trim with out.
+  if t is "enabled" then
+    give back 1.
+  end
+  give back 0.
+end

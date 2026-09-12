@@ -18,3 +18,22 @@ define count_words with s as
     set parts to split with s and " ".
     give back length with parts.
 end
+define pad_left with s and n and ch as
+    set out to s.
+    while length with out is less than n then
+        set out to ch plus out.
+    end
+    give back out.
+end
+define pad_right with s and n and ch as
+    set out to s.
+    while length with out is less than n then
+        set out to out plus ch.
+    end
+    give back out.
+end
+define slug with s as
+    set t to lower with s.
+    set t to replace with t and " " and "-".
+    give back t.
+end

@@ -299,3 +299,15 @@ define shimgui_run with title and port and render_fn and event_fn as
     say "shimgui: " plus title plus " at " plus url.
     serve with port and inner.
 end.
+define shimgui_dark with flag as
+    if flag is 1 then
+        give back "<style>body{background:#14141e;color:#e0e0ef}</style>".
+    end
+    give back "".
+end.
+define shimgui_progress with pct as
+    give back "<progress value=\"" plus pct plus "\" max=\"100\"></progress>".
+end.
+define shimgui_slider with min and max and val as
+    give back "<input type=\"range\" min=\"" plus min plus "\" max=\"" plus max plus "\" value=\"" plus val plus "\">".
+end.

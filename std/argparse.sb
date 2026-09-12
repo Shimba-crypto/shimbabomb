@@ -1,0 +1,45 @@
+SB
+## argparse — simple CLI arg parsing, 4GB-safe
+## Provides: arg_parse, arg_has, arg_get, arg_help
+## spec is list of maps: [{name:"--port", default:"8080", help:"port"}, ...]
+
+define arg_parse with spec and argv as
+  set out to map with.
+  loop s through spec then
+    set name to s["name"].
+    set def to s["default"].
+    set out[name] to def.
+  end
+  set n to length with argv.
+  count i from 0 to n minus 1 then
+    set a to item with i and argv.
+    loop s through spec then
+      if a is s["name"] then
+        set nxt to item with i plus 1 and argv.
+        if nxt then
+          set out[a] to nxt.
+        otherwise
+          set out[a] to 1.
+        end
+      end
+    end
+  end
+  give back out.
+end
+
+define arg_has with parsed and name as
+  give back has_key with parsed and name.
+end
+
+define arg_get with parsed and name as
+  give back parsed[name].
+end
+
+define arg_help with spec as
+  set out to "Usage:\n".
+  loop s through spec then
+    set line to "  " plus s["name"] plus "  " plus s["help"] plus " (default: " plus s["default"] plus ")\n".
+    set out to out plus line.
+  end
+  give back out.
+end
