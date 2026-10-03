@@ -1,0 +1,16 @@
+SB
+## cli_notes — tiny CLI note tool (argparse + store + log demo)
+## run: sb examples/cli_notes.sb
+pls bring argparse.
+pls bring store.
+pls bring log.
+
+set spec_a to map with "name" and "--add" and "default" and "" and "help" and "add a note".
+set spec_b to map with "name" and "--list" and "default" and "0" and "help" and "list notes".
+set spec to list with spec_a and spec_b.
+say arg_help with spec.
+set st to store_open with "/tmp/opencode/notes.json".
+set st to store_put with st and "demo" and "argparse+store+log starter".
+set g to store_get with st and "demo".
+log_info with g["val"].
+say "notes keys:" plus store_keys with st.

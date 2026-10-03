@@ -11,26 +11,30 @@ SB
 ## — ANSI escape helpers ———————————————————————————————————————————————
 
 define esc with s as
-  give back "\033[" plus s.
+  set e to chr with 27.
+  give back e plus "[" plus s.
 end
 
 ## — cursor / screen control ———————————————————————————————————————————
 
 define tui_clear with as
-  print esc with "2J".
+  emit esc with "2J".
   tui_move with 1 and 1.
 end
 
 define tui_move with row and col as
-  print esc with to_string with row plus ";" plus to_string with col plus "H".
+  set rs to to_string with row.
+  set cs to to_string with col.
+  set seq to esc with rs plus ";" plus cs plus "H".
+  emit with seq.
 end
 
 define tui_cursor with on_off as
   if on_off is 1 then
-    print esc with "?25h".
+    emit esc with "?25h".
   end
   if on_off is 0 then
-    print esc with "?25l".
+    emit esc with "?25l".
   end
 end
 
@@ -39,69 +43,93 @@ end
 ## 8-15 = bright variants
 
 define tui_fg with c as
-  print esc with to_string with 30 plus c plus "m".
+  set code to 30 plus c.
+  set cs to to_string with code.
+  set seq to esc with cs plus "m".
+  emit with seq.
 end
 
 define tui_bg with c as
-  print esc with to_string with 40 plus c plus "m".
+  set code to 40 plus c.
+  set cs to to_string with code.
+  set seq to esc with cs plus "m".
+  emit with seq.
 end
 
 define tui_fg_bright with c as
-  print esc with to_string with 90 plus c plus "m".
+  set code to 90 plus c.
+  set cs to to_string with code.
+  set seq to esc with cs plus "m".
+  emit with seq.
 end
 
 define tui_bg_bright with c as
-  print esc with to_string with 100 plus c plus "m".
+  set code to 100 plus c.
+  set cs to to_string with code.
+  set seq to esc with cs plus "m".
+  emit with seq.
 end
 
 ## — 256-color ———————————————————————————————————————————————————————
 
 define tui_fg_256 with n as
-  print esc with "38;5;" plus to_string with n plus "m".
+  set ns to to_string with n.
+  set seq to esc with "38;5;" plus ns plus "m".
+  emit with seq.
 end
 
 define tui_bg_256 with n as
-  print esc with "48;5;" plus to_string with n plus "m".
+  set ns to to_string with n.
+  set seq to esc with "48;5;" plus ns plus "m".
+  emit with seq.
 end
 
 ## — truecolor (24-bit) —————————————————————————————————————————————
 
 define tui_fg_rgb with r and g and b as
-  print esc with "38;2;" plus to_string with r plus ";" plus to_string with g plus ";" plus to_string with b plus "m".
+  set rs to to_string with r.
+  set gs to to_string with g.
+  set bs to to_string with b.
+  set seq to esc with "38;2;" plus rs plus ";" plus gs plus ";" plus bs plus "m".
+  emit with seq.
 end
 
 define tui_bg_rgb with r and g and b as
-  print esc with "48;2;" plus to_string with r plus ";" plus to_string with g plus ";" plus to_string with b plus "m".
+  set rs to to_string with r.
+  set gs to to_string with g.
+  set bs to to_string with b.
+  set seq to esc with "48;2;" plus rs plus ";" plus gs plus ";" plus bs plus "m".
+  emit with seq.
 end
 
 ## — text attributes —————————————————————————————————————————————————
 
 define tui_reset with as
-  print esc with "0m".
+  emit esc with "0m".
 end
 
 define tui_bold with as
-  print esc with "1m".
+  emit esc with "1m".
 end
 
 define tui_dim with as
-  print esc with "2m".
+  emit esc with "2m".
 end
 
 define tui_underline with as
-  print esc with "4m".
+  emit esc with "4m".
 end
 
 define tui_blink with as
-  print esc with "5m".
+  emit esc with "5m".
 end
 
 define tui_invert with as
-  print esc with "7m".
+  emit esc with "7m".
 end
 
 define tui_strikethrough with as
-  print esc with "9m".
+  emit esc with "9m".
 end
 
 ## — raw drawing —————————————————————————————————————————————————————
@@ -116,7 +144,7 @@ define tui_fill with ch as
     tui_move with r and 1.
     set c to 1.
     while not (c is greater than w) then
-      print ch.
+      emit with ch.
       set c to c plus 1.
     end
     set r to r plus 1.
@@ -125,14 +153,14 @@ end
 
 define tui_text with row and col and text as
   tui_move with row and col.
-  print text.
+  emit with text.
 end
 
 define tui_hline with row and col and len and ch as
   tui_move with row and col.
   set i to 0.
   while i is less than len then
-    print ch.
+    emit with ch.
     set i to i plus 1.
   end
 end
@@ -141,7 +169,7 @@ define tui_vline with row and col and len and ch as
   set i to 0.
   while i is less than len then
     tui_move with row plus i and col.
-    print ch.
+    emit with ch.
     set i to i plus 1.
   end
 end
@@ -152,58 +180,58 @@ end
 define tui_box with row and col and w and h as
   ## top
   tui_move with row and col.
-  print "┌".
+  emit with "┌".
   set i to 1.
   while i is less than w minus 1 then
-    print "─".
+    emit with "─".
     set i to i plus 1.
   end
-  print "┐".
+  emit with "┐".
   ## sides
   set r to 1.
   while r is less than h minus 1 then
     tui_move with row plus r and col.
-    print "│".
+    emit with "│".
     tui_move with row plus r and (col plus w minus 1).
-    print "│".
+    emit with "│".
     set r to r plus 1.
   end
   ## bottom
   tui_move with row plus h minus 1 and col.
-  print "└".
+  emit with "└".
   set i to 1.
   while i is less than w minus 1 then
-    print "─".
+    emit with "─".
     set i to i plus 1.
   end
-  print "┘".
+  emit with "┘".
 end
 
 define tui_box_double with row and col and w and h as
   tui_move with row and col.
-  print "╔".
+  emit with "╔".
   set i to 1.
   while i is less than w minus 1 then
-    print "═".
+    emit with "═".
     set i to i plus 1.
   end
-  print "╗".
+  emit with "╗".
   set r to 1.
   while r is less than h minus 1 then
     tui_move with row plus r and col.
-    print "║".
+    emit with "║".
     tui_move with row plus r and (col plus w minus 1).
-    print "║".
+    emit with "║".
     set r to r plus 1.
   end
   tui_move with row plus h minus 1 and col.
-  print "╚".
+  emit with "╚".
   set i to 1.
   while i is less than w minus 1 then
-    print "═".
+    emit with "═".
     set i to i plus 1.
   end
-  print "╝".
+  emit with "╝".
 end
 
 define tui_box_filled with row and col and w and h and fg and bg as
@@ -216,7 +244,7 @@ define tui_box_filled with row and col and w and h and fg and bg as
     set c to 1.
     while c is less than w minus 1 then
       tui_move with row plus r and (col plus c).
-      print " ".
+      emit with " ".
       set c to c plus 1.
     end
     set r to r plus 1.
@@ -252,12 +280,12 @@ define tui_progress with row and col and w and pct as
   while i is less than w minus 2 then
     if i is less than filled then
       tui_fg with 2.
-      print "█".
+      emit with "█".
       tui_reset with.
     end
     if not (i is less than filled) then
       tui_fg with 8.
-      print "░".
+      emit with "░".
       tui_reset with.
     end
     set i to i plus 1.
@@ -283,7 +311,7 @@ define tui_list with row and col and w and items and selected as
       set txt to txt plus " ".
       set tl to tl plus 1.
     end
-    print " " plus txt.
+    emit with " " plus txt.
     tui_reset with.
     set i to i plus 1.
   end
@@ -293,8 +321,11 @@ define tui_panel with row and col and w and h and title as
   tui_box with row and col and w and h.
   set tl to length with title.
   set tw to tl plus 2.
-  set tx to col plus (w minus tw) divided by 2.
-  tui_text with row and tx and " " plus title plus " ".
+  set inner to w minus tw.
+  set half to inner divided evenly by 2.
+  set tx to col plus half.
+  set tline to " " plus title plus " ".
+  tui_text with row and tx and tline.
 end
 
 define tui_tabs with row and col and tabs and active as
@@ -325,12 +356,14 @@ define tui_status_bar with row and col and w and text and fg and bg as
   tui_fg with fg.
   tui_bg with bg.
   set i to 0.
+  set tlen to length with text.
   while i is less than w then
-    if i is less than length with text then
-      print item with i and text.
+    if i is less than tlen then
+      set ch to substr with text and i and 1.
+      emit with ch.
     end
-    if not (i is less than length with text) then
-      print " ".
+    if not (i is less than tlen) then
+      emit with " ".
     end
     set i to i plus 1.
   end
@@ -346,13 +379,13 @@ end
 ## — mouse support —————————————————————————————————————————————————
 
 define tui_mouse_on with as
-  print esc with "?1000h".
-  print esc with "?1006h".
+  emit esc with "?1000h".
+  emit esc with "?1006h".
 end
 
 define tui_mouse_off with as
-  print esc with "?1000l".
-  print esc with "?1006l".
+  emit esc with "?1000l".
+  emit esc with "?1006l".
 end
 
 ## — event loop ———————————————————————————————————————————————————
@@ -388,4 +421,201 @@ define tui_quit with as
   tui_cursor with 1.
   tui_clear with.
   tui_reset with.
+end
+
+## — L batch: table/sparkline/menu/confirm/toast/modal/prompt ———————————
+
+## tui_table with row/col/headers/rows/col_widths (lists). rows = list of lists.
+define tui_table with row and col and headers and rows and widths as
+  set cx to col.
+  set nh to length with headers.
+  count hidx from 0 to nh minus 1 then
+    set w to item with hidx and widths.
+    tui_bold with.
+    tui_text with row and cx and item with hidx and headers.
+    tui_reset with.
+    set cx to cx plus w plus 2.
+  end
+  set cx to col.
+  set seplen to 0.
+  count hidx2 from 0 to nh minus 1 then
+    set w2 to item with hidx2 and widths.
+    set seplen to seplen plus w2 plus 2.
+  end
+  tui_separator with row plus 1 and col and seplen.
+  set r to 0.
+  set nr to length with rows.
+  count ridx from 0 to nr minus 1 then
+    set line to item with ridx and rows.
+    set cx2 to col.
+    set nc to length with line.
+    count cidx from 0 to nc minus 1 then
+      set cell to item with cidx and line.
+      tui_text with row plus 2 plus ridx and cx2 and cell.
+      set cw to item with cidx and widths.
+      set cx2 to cx2 plus cw plus 2.
+    end
+  end
+end
+
+## tui_sparkline with row/col/values/width using block chars
+define tui_sparkline with row and col and values and width as
+  set glyphs to list with " " and "." and ":" and "-" and "=" and "+" and "*" and "#" and "@".
+  set n to length with values.
+  if n is 0 then give back 0. end
+  set lo to item with 0 and values.
+  set hi to item with 0 and values.
+  loop v through values then
+    if v is less than lo then set lo to v. end
+    if v is greater than hi then set hi to v. end
+  end
+  set span to hi minus lo.
+  if span is 0 then set span to 1. end
+  tui_move with row and col.
+  set shown to n.
+  if shown is greater than width then set shown to width. end
+  set begin_at to n minus shown.
+  count i from begin_at to n minus 1 then
+    set v2 to item with i and values.
+    set lvl to (v2 minus lo) times 8 divided by span.
+    set li to lvl divided evenly by 1.
+    if li is greater than 8 then set li to 8. end
+    emit item with li and glyphs.
+  end
+end
+
+## tui_bar_chart with row/col/labels/values/width (horizontal bars)
+define tui_bar_chart with row and col and labels and values and width as
+  set n to length with values.
+  if n is 0 then give back 0. end
+  set hi to item with 0 and values.
+  loop v through values then
+    if v is greater than hi then set hi to v. end
+  end
+  if hi is 0 then set hi to 1. end
+  count i from 0 to n minus 1 then
+    set v3 to item with i and values.
+    set barlen to v3 times width divided by hi.
+    tui_text with row plus i and col and item with i and labels.
+    set b to 0.
+    tui_move with row plus i and col plus 12.
+    while b is less than barlen then
+      tui_fg with 2.
+      emit with "#".
+      tui_reset with.
+      set b to b plus 1.
+    end
+    emit with " " plus v3.
+  end
+end
+
+## tui_menu with row/col/items/selected -> draws; caller moves selected with j/k
+define tui_menu with row and col and items and selected as
+  set n to length with items.
+  count i from 0 to n minus 1 then
+    set prefix to "  ".
+    if i is selected then
+      set prefix to "> ".
+      tui_invert with.
+    end
+    set label to item with i and items.
+    set line to prefix plus label.
+    set rowi to row plus i.
+    tui_text with rowi and col and line.
+    tui_reset with.
+  end
+  give back selected.
+end
+
+## tui_checkbox with row/col/label/checked -> draws [x]/[ ]
+define tui_checkbox with row and col and label and checked as
+  set box to "[ ]".
+  if checked is 1 then set box to "[x]". end
+  tui_text with row and col and box plus " " plus label.
+  give back checked.
+end
+
+## tui_toast with row/col/msg/fg -> one-line highlighted message
+define tui_toast with row and col and msg and fg as
+  tui_fg with fg.
+  tui_bold with.
+  tui_text with row and col and msg.
+  tui_reset with.
+end
+
+## tui_modal with row/col/w/h/title/body_lines (list) -> centered box + lines
+define tui_modal with row and col and w and h and title and body_lines as
+  tui_box_filled with row and col and w and h and 7 and 4.
+  tui_panel with row and col and w and h and title.
+  set n to length with body_lines.
+  count i from 0 to n minus 1 then
+    tui_text with row plus 2 plus i and col plus 2 and item with i and body_lines.
+  end
+end
+
+## tui_confirm with row/col/question -> 1 for y, 0 for n (loops keys)
+define tui_confirm with row and col and question as
+  tui_text with row and col and question plus " [y/n] ".
+  tui_raw with.
+  while 1 is 1 then
+    set k to tui_read with.
+    if k is 121 then
+      tui_cooked with.
+      give back 1.
+    end
+    if k is 110 then
+      tui_cooked with.
+      give back 0.
+    end
+    if k is 113 then
+      tui_cooked with.
+      give back 0.
+    end
+  end
+end
+
+## tui_prompt with row/col/question/maxlen -> typed string (enter submits)
+define tui_prompt with row and col and question and maxlen as
+  tui_text with row and col and question plus " ".
+  set buf to "".
+  tui_raw with.
+  tui_cursor with 1.
+  while 1 is 1 then
+    set qlen to length with question.
+    set typecol to col plus qlen plus 1.
+    tui_text with row and typecol and buf plus " ".
+    set k to tui_read with.
+    if k is 13 then
+      tui_cooked with.
+      tui_cursor with 0.
+      give back buf.
+    end
+    if k is 10 then
+      tui_cooked with.
+      tui_cursor with 0.
+      give back buf.
+    end
+    if k is 127 then
+      set bl to length with buf.
+      if bl is greater than 0 then
+        set buf to substr with buf and 0 and bl minus 1.
+      end
+    otherwise
+      if k is greater than 31 then
+        if length with buf is less than maxlen then
+          set buf to buf plus chr with k.
+        end
+      end
+    end
+  end
+end
+
+## tui_spinner_tick with row/col/frame -> draws one spinner frame, returns next frame
+define tui_spinner_tick with row and col and frame as
+  set frames to list with "|" and "/" and "-" and "\\".
+  set f to frame divided evenly by 4.
+  set f to f times 4.
+  set f to frame minus f.
+  tui_text with row and col and item with f and frames.
+  give back frame plus 1.
 end

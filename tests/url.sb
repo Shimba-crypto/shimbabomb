@@ -1,0 +1,56 @@
+SB
+pls bring url.
+
+set u to "https://user:pass@example.com:8443/a/b?x=1&y=hello%20world#frag".
+set p to url_parse with u.
+assert p["ok"] is 1.
+assert p["scheme"] is "https".
+assert p["user"] is "user".
+assert p["pass"] is "pass".
+assert p["host"] is "example.com".
+assert p["port"] is 8443.
+assert p["path"] is "/a/b".
+assert p["query"] is "x=1&y=hello%20world".
+assert p["fragment"] is "frag".
+
+set qx to url_query_get with u and "x".
+assert qx is "1".
+set qy to url_query_get with u and "y".
+assert qy is "hello world".
+set qz to url_query_get with u and "missing".
+assert qz is "".
+
+set rebuilt to url_build with p.
+assert rebuilt is u.
+
+assert url_host with "http://example.com/p" is "example.com".
+assert url_path with "http://example.com/p/q" is "/p/q".
+assert url_scheme with "ftp://h" is "ftp".
+assert url_port with "https://h" is 443.
+assert url_port with "http://h:8080" is 8080.
+assert url_is_abs with "https://h" is 1.
+assert url_is_abs with "/rel" is 0.
+
+set dec to url_decode with "a%20b%2Fc+d".
+assert dec is "a b/c d".
+set enc to url_encode with "a b/c+d&e".
+assert enc is "a%20b%2Fc%2Bd%26e".
+
+set j1 to url_join with "https://x.com/a/b" and "/c/d".
+assert j1 is "https://x.com/c/d".
+set j2 to url_join with "https://x.com/a/b" and "c".
+assert j2 is "https://x.com/a/c".
+set j3 to url_join with "https://x.com/a/b" and "https://z.com/z".
+assert j3 is "https://z.com/z".
+
+set ip to url_parse with "http://[::1]:8080/x".
+assert ip["host"] is "[::1]".
+assert ip["port"] is 8080.
+
+set noq to url_parse with "http://example.com".
+assert noq["host"] is "example.com".
+assert noq["path"] is "".
+
+set m to url_parse with "mailto:a@b.com".
+assert m["scheme"] is "mailto".
+assert m["path"] is "a@b.com".

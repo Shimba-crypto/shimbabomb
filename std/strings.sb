@@ -6,10 +6,14 @@ define capitalize with s as
     if length with s is equal to 0 then
         give back s.
     end
-    set first to upper with s[0].
+    set firstch to substr with s and 0 and 1.
+    set first to upper with firstch.
     set rest to "".
-    count i from 1 to length with s minus 1 then
-        set rest to rest plus s[i].
+    set slen to length with s.
+    set lasti to slen minus 1.
+    count i from 1 to lasti then
+        set ch to substr with s and i and 1.
+        set rest to rest plus ch.
     end
     give back first plus lower with rest.
 end
@@ -36,4 +40,32 @@ define slug with s as
     set t to lower with s.
     set t to replace with t and " " and "-".
     give back t.
+end
+define starts_with with s and prefix as
+    set pl to length with prefix.
+    if pl is 0 then give back 1. end
+    set sl to length with s.
+    if sl is less than pl then give back 0. end
+    set head to substr with s and 0 and pl.
+    if head is prefix then give back 1. end
+    give back 0.
+end
+define ends_with with s and suffix as
+    set xl to length with suffix.
+    if xl is 0 then give back 1. end
+    set sl to length with s.
+    if sl is less than xl then give back 0. end
+    set cutp to sl minus xl.
+    set tail to substr with s and cutp and xl.
+    if tail is suffix then give back 1. end
+    give back 0.
+end
+define repeat with s and n as
+    set out to "".
+    set i to 0.
+    while i is less than n then
+        set out to out plus s.
+        set i to i plus 1.
+    end
+    give back out.
 end

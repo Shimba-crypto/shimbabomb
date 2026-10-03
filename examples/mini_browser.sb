@@ -6,19 +6,27 @@ say "Type exit to quit.".
 
 define browse as
     set url to input with "url> ".
+    set at_eof to eof with.
+    if at_eof then
+        say "".
+        say "bye!".
+        give back 0.
+    end
     if url is equal to "exit" then
         say "bye!".
         give back 0.
     end
     if url is equal to "" then
-        browse with.
+        set r to browse with.
+        give back r.
     end
     if contains with url and "://" is equal to false then
         set url to "https://" plus url.
     end
     say "opening " plus url plus "...".
     window with url.
-    browse with.
+    set r2 to browse with.
+    give back r2.
 end
 
 browse with.

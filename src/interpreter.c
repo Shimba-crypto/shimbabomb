@@ -1003,6 +1003,21 @@ static char shimgui_entry_snap[SHIMGUI_MAX_ENTRIES][512];
 static int shimgui_entry_snap_n = 0;
 static char shimgui_last_click[256] = {0};
 
+static void shimgui_win_destroy(GtkWidget *w, gpointer data) {
+    (void)w; (void)data;
+    // snapshot entry text while widgets are still valid (before dispose)
+    shimgui_entry_snap_n = 0;
+    if (shim_gtk_entry_get_text) {
+        for (int i = 0; i < shimgui_entry_count && i < SHIMGUI_MAX_ENTRIES; i++) {
+            const char *t = shim_gtk_entry_get_text(GTK_ENTRY(shimgui_entries[i]));
+            strncpy(shimgui_entry_snap[i], t ? t : "", sizeof(shimgui_entry_snap[i])-1);
+            shimgui_entry_snap[i][sizeof(shimgui_entry_snap[i])-1] = '\0';
+            shimgui_entry_snap_n++;
+        }
+    }
+    if (shim_gtk_main_quit) shim_gtk_main_quit();
+}
+
 static void shimgui_btn_clicked(GtkWidget *w, gpointer data) {
     (void)w;
     const char *label = (const char*)data;
@@ -1024,7 +1039,7 @@ static Value native_shimgui_window(int argc, Value *args) {
     shimgui_win = shim_gtk_window_new(GTK_WINDOW_TOPLEVEL);
     shim_gtk_window_set_title(GTK_WINDOW(shimgui_win), title);
     shim_gtk_window_set_default_size(GTK_WINDOW(shimgui_win), width, height);
-    shim_g_signal_connect_data(shimgui_win, "destroy", G_CALLBACK(shim_gtk_main_quit), NULL, NULL, 0);
+    shim_g_signal_connect_data(shimgui_win, "destroy", G_CALLBACK(shimgui_win_destroy), NULL, NULL, 0);
     shimgui_box = shim_gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     shim_gtk_container_set_border_width(GTK_CONTAINER(shimgui_box), 16);
     shim_gtk_container_add(GTK_CONTAINER(shimgui_win), shimgui_box);
@@ -1069,17 +1084,8 @@ static Value native_shimgui_run(int argc, Value *args) {
     (void)argc; (void)args;
     if (!shimgui_win) return val_error_code("no window", ERR_GUI);
     shim_gtk_main();
-    // snapshot entry text before tearing down: after run returns the
-    // widgets are gone, but scripts can still read what was typed
-    shimgui_entry_snap_n = 0;
-    if (shim_gtk_entry_get_text) {
-        for (int i = 0; i < shimgui_entry_count && i < SHIMGUI_MAX_ENTRIES; i++) {
-            const char *t = shim_gtk_entry_get_text(GTK_ENTRY(shimgui_entries[i]));
-            strncpy(shimgui_entry_snap[i], t ? t : "", sizeof(shimgui_entry_snap[i])-1);
-            shimgui_entry_snap[i][sizeof(shimgui_entry_snap[i])-1] = '\0';
-            shimgui_entry_snap_n++;
-        }
-    }
+    // entries are snapshotted on window destroy (shimgui_win_destroy); the
+    // widgets are freed by then, so do NOT touch them here.
     shimgui_win = NULL; shimgui_box = NULL; shimgui_entry_count = 0;
     return val_nil();
 }
@@ -1461,6 +1467,11 @@ static Value native_input(int argc, Value *args) {
     return val_string(buf);
 }
 
+static Value native_eof(int argc, Value *args) {
+    (void)argc; (void)args;
+    return val_bool(feof(stdin));
+}
+
 static Value native_make_map(int argc, Value *args) {
     Value m = val_map();
     for (int i = 0; i + 1 < argc; i += 2) {
@@ -1801,6 +1812,58 @@ static Value native_tui_size(int argc, Value *args) {
     return m;
 }
 
+static Value native_sb_version(int argc, Value *args) {
+    (void)argc; (void)args;
+    static char ver[32] = {0};
+    if (!ver[0]) {
+        snprintf(ver, sizeof(ver), "unknown");
+        FILE *vf = NULL;
+#ifdef SB_SRC_DIR
+        {
+            char vp[1024];
+            snprintf(vp, sizeof(vp), "%s/VERSION", SB_SRC_DIR);
+            vf = fopen(vp, "rb");
+        }
+#endif
+        if (!vf) {
+            const char *home = getenv("HOME");
+            if (home) {
+                char vp[1024];
+                snprintf(vp, sizeof(vp), "%s/.local/share/shimbabomb/VERSION", home);
+                vf = fopen(vp, "rb");
+            }
+        }
+        if (vf) {
+            if (fgets(ver, sizeof(ver), vf)) ver[strcspn(ver, "\r\n")] = '\0';
+            fclose(vf);
+            if (!ver[0]) snprintf(ver, sizeof(ver), "unknown");
+        }
+    }
+    return val_string(ver);
+}
+
+static Value native_chr(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_NUMBER) return val_need_args("chr", "a code 0-255");
+    int c = (int)args[0].as.number;
+    if (c < 0) c = 0;
+    if (c > 255) c = 255;
+    char s[2] = { (char)c, '\0' };
+    return val_string(s);
+}
+
+static Value native_ord(int argc, Value *args) {
+    if (argc < 1 || args[0].type != VAL_STRING) return val_need_args("ord", "a string");
+    if (!args[0].as.string[0]) return val_number(-1);
+    return val_number((unsigned char)args[0].as.string[0]);
+}
+
+static Value native_emit(int argc, Value *args) {
+    // write without trailing newline (TUI/ANSI output); flushes immediately
+    for (int i = 0; i < argc; i++) val_print(&args[i]);
+    fflush(stdout);
+    return val_nil();
+}
+
 // ── Class support ────────────────────────────────────────────────────
 
 static Value interp_eval_class(Interpreter *interp, Environment *env, AstNode *node) {
@@ -1849,9 +1912,12 @@ static Value interp_eval(Interpreter *interp, Environment *env, AstNode *node) {
                 const char *got = val_type_name(&val);
                 int ok = strcmp(want, got)==0
                     || (strcmp(want,"text")==0 && strcmp(got,"text")==0)
+                    || (strcmp(want,"string")==0 && strcmp(got,"text")==0)
                     || (strcmp(want,"number")==0 && strcmp(got,"number")==0)
                     || (strcmp(want,"truth")==0 && got[0]=='t')
+                    || (strcmp(want,"bool")==0 && got[0]=='t')
                     || (strcmp(want,"list")==0 && strcmp(got,"list")==0)
+                    || (strcmp(want,"array")==0 && strcmp(got,"list")==0)
                     || (strcmp(want,"map")==0 && strcmp(got,"map")==0);
                 if (!ok) {
                     char msg[256];
@@ -2585,6 +2651,7 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "to_number",  val_native(native_to_number,  "to_number"));
     env_set(interp->global, "to_string",  val_native(native_to_string,  "to_string"));
     env_set(interp->global, "input",      val_native(native_input,      "input"));
+    env_set(interp->global, "eof",        val_native(native_eof,        "eof"));
     env_set(interp->global, "list",       val_native(native_make_list,  "list"));
     env_set(interp->global, "length",     val_native(native_length,     "length"));
     env_set(interp->global, "item",       val_native(native_item,       "item"));
@@ -2654,6 +2721,10 @@ void interp_init(Interpreter *interp) {
     env_set(interp->global, "sprite_draw_region",val_native(native_sprite_draw_region,"sprite_draw_region"));
     env_set(interp->global, "sprite_draw_region_key",val_native(native_sprite_draw_region_key,"sprite_draw_region_key"));
     env_set(interp->global, "run",        val_native(native_run_cmd,    "run"));
+    env_set(interp->global, "sb_version", val_native(native_sb_version, "sb_version"));
+    env_set(interp->global, "chr",        val_native(native_chr,        "chr"));
+    env_set(interp->global, "ord",        val_native(native_ord,        "ord"));
+    env_set(interp->global, "emit",       val_native(native_emit,       "emit"));
     env_set(interp->global, "map",        val_native(native_make_map,   "map"));
     env_set(interp->global, "keys",       val_native(native_keys,       "keys"));
     env_set(interp->global, "has_key",    val_native(native_has_key,    "has_key"));

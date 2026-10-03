@@ -102,3 +102,77 @@ define select with chans as
   end
   give back map with "idx" and minus 1 and "ch" and 0.
 end
+
+## — N batch: retry/pool/once/timers/race ————————————————————————————
+
+set ONCE_REG to list with.
+
+## retry with cb and times and wait_ms -> {ok, val/err, attempts}
+define retry with cb and maxtries and wait_ms as
+  set attempt to 0.
+  while attempt is less than maxtries then
+    set attempt to attempt plus 1.
+    try
+      set v to cb with.
+      give back map with "ok" and 1 and "val" and v and "attempts" and attempt.
+    catch evar
+      if attempt is less than maxtries then
+        sleep_ms with wait_ms times attempt.
+      otherwise
+        give back map with "ok" and 0 and "err" and evar and "attempts" and attempt.
+      end
+    end
+  end
+  give back map with "ok" and 0 and "err" and "no attempts ran" and "attempts" and 0.
+end
+
+## parallel_map with xs and f -> list (sequential now, pool API later)
+define parallel_map with xs and f as
+  set out to list with.
+  loop el through xs then
+    add_to with out and f with el.
+  end
+  give back out.
+end
+
+## once with key and cb -> cached result (runs cb only first time)
+define once with key and cb as
+  set n to length with ONCE_REG.
+  count i from 0 to n minus 1 then
+    set entry to item with i and ONCE_REG.
+    if entry["key"] is key then
+      give back entry["val"].
+    end
+  end
+  set v to cb with.
+  add_to with ONCE_REG and map with "key" and key and "val" and v.
+  give back v.
+end
+
+## after_ms with ms and cb -> sleep then run, return cb result
+define after_ms with ms and cb as
+  sleep_ms with ms.
+  give back cb with.
+end
+
+## race_first with handles -> first handle whose result is not nothing
+define race_first with handles as
+  loop h through handles then
+    set r to h["result"].
+    if r then
+      give back h.
+    end
+  end
+  give back item with 0 and handles.
+end
+
+## await_timeout with handle and ms -> {ok, val} (ok 0 when over budget)
+define await_timeout with handle and ms as
+  set t0 to time_ms with.
+  set v to await with handle.
+  set dt to time_ms with minus t0.
+  if dt is greater than ms then
+    give back map with "ok" and 0 and "val" and v.
+  end
+  give back map with "ok" and 1 and "val" and v.
+end

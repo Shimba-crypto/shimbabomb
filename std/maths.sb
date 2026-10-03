@@ -42,3 +42,64 @@ define is_nan with v as
     if v is not v then give back 1. end
     give back 0.
 end
+
+## — F batch: fib/factorial/gcd/lcm/round_to/average ———————————————————
+
+define fib with n as
+  if n is less than 2 then give back n. end
+  set a to 0.
+  set b to 1.
+  count i from 2 to n then
+    set c to a plus b.
+    set a to b.
+    set b to c.
+  end
+  give back b.
+end
+
+define factorial with n as
+  set acc to 1.
+  count i from 2 to n then
+    set acc to acc times i.
+  end
+  give back acc.
+end
+
+define gcd with a and b as
+  set x to absolute with a.
+  set y to absolute with b.
+  while y is greater than 0 then
+    set t to y.
+    set q to x divided evenly by y.
+    set y to x minus q times y.
+    set x to t.
+  end
+  give back x.
+end
+
+define lcm with a and b as
+  set g to gcd with a and b.
+  if g is 0 then give back 0. end
+  set ag to a divided by g.
+  give back absolute with ag times b.
+end
+
+define round_to with v and places as
+  set mult to 1.
+  count i from 1 to places then
+    set mult to mult times 10.
+  end
+  set scaled to v times mult.
+  set r to round with scaled.
+  give back r divided by mult.
+end
+
+define average with xs as
+  set n to length with xs.
+  if n is 0 then give back 0. end
+  set total to 0.
+  loop el through xs then
+    set total to total plus el.
+  end
+  give back total divided by n.
+end

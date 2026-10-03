@@ -1,0 +1,143 @@
+SB
+## store — file-backed kv/json store with ttl, backup, queue (Q401-425 batch)
+## Backend is one JSON file per store: {"k": {"v": ..., "exp": ms|0}}
+## Uses: parse_json, to_json, read_file, write_file, time_ms
+## NOTE: SB maps copy on fetch — always write back via store_save.
+
+define store_open with path as
+  set data to map with.
+  set raw to read_file with path.
+  if length with raw is greater than 0 then
+    try
+      set data to parse_json with raw.
+    catch evar
+      set data to map with.
+    end
+  end
+  give back map with "path" and path and "data" and data.
+end
+
+define store_save with st as
+  set js to to_json with st["data"].
+  write_file with st["path"] and js.
+  give back st.
+end
+
+define store_put with st and k and v as
+  set data to st["data"].
+  set data[k] to map with "v" and v and "exp" and 0.
+  set st["data"] to data.
+  give back store_save with st.
+end
+
+define store_put_ttl with st and k and v and ttl_ms as
+  set data to st["data"].
+  set nowms to time_ms with.
+  set exp to nowms plus ttl_ms.
+  set data[k] to map with "v" and v and "exp" and exp.
+  set st["data"] to data.
+  give back store_save with st.
+end
+
+## map_without with m and k -> copy of m minus key (SB has no key-delete)
+define map_without with m and k as
+  set out to map with.
+  set ks to keys with m.
+  loop key through ks then
+    if key is k then
+      set key to key.
+    otherwise
+      set out[key] to m[key].
+    end
+  end
+  give back out.
+end
+
+define store_get with st and k as
+  set data to st["data"].
+  set present to has_key with data and k.
+  if not (present) then
+    give back map with "ok" and 0 and "val" and 0.
+  end
+  set entry to data[k].
+  set exp to entry["exp"].
+  if exp is greater than 0 then
+    set now to time_ms with.
+    if now is greater than exp then
+      set st["data"] to map_without with data and k.
+      store_save with st.
+      give back map with "ok" and 0 and "val" and 0.
+    end
+  end
+  give back map with "ok" and 1 and "val" and entry["v"].
+end
+
+define store_del with st and k as
+  set data to st["data"].
+  set present to has_key with data and k.
+  if not (present) then
+    give back st.
+  end
+  set st["data"] to map_without with data and k.
+  store_save with st.
+  give back st.
+end
+
+define store_keys with st as
+  give back keys with st["data"].
+end
+
+define store_nuke with st as
+  set st["data"] to map with.
+  give back store_save with st.
+end
+
+## timestamped backup copy -> backup path
+define store_backup with st as
+  set ts to time_ms with.
+  set dst to st["path"] plus ".bak." plus ts.
+  set raw to read_file with st["path"].
+  write_file with dst and raw.
+  give back dst.
+end
+
+## fifo queue on top of a store: keys "__q0", "__q1", ... + "__qhead"/"__qtail"
+define queue_push with st and v as
+  set tail to 0.
+  set gt to store_get with st and "__qtail".
+  if gt["ok"] is 1 then set tail to gt["val"]. end
+  set st2 to store_put with st and "__q" plus tail and v.
+  set st3 to store_put with st2 and "__qtail" and tail plus 1.
+  set gh to store_get with st3 and "__qhead".
+  if gh["ok"] is 0 then
+    give back store_put with st3 and "__qhead" and 0.
+  end
+  give back st3.
+end
+
+define queue_pop with st as
+  set head to 0.
+  set tail to 0.
+  set gh to store_get with st and "__qhead".
+  if gh["ok"] is 1 then set head to gh["val"]. end
+  set gt to store_get with st and "__qtail".
+  if gt["ok"] is 1 then set tail to gt["val"]. end
+  set lastidx to tail minus 1.
+  if head is greater than lastidx then
+    give back map with "ok" and 0 and "val" and 0 and "store" and st.
+  end
+  set gv to store_get with st and "__q" plus head.
+  set st2 to store_del with st and "__q" plus head.
+  set st3 to store_put with st2 and "__qhead" and head plus 1.
+  give back map with "ok" and 1 and "val" and gv["val"] and "store" and st3.
+end
+
+define queue_len with st as
+  set head to 0.
+  set tail to 0.
+  set gh to store_get with st and "__qhead".
+  if gh["ok"] is 1 then set head to gh["val"]. end
+  set gt to store_get with st and "__qtail".
+  if gt["ok"] is 1 then set tail to gt["val"]. end
+  give back tail minus head.
+end

@@ -32,6 +32,14 @@ sb install <pkg>        # install to sb_modules/
 sb pack deb|rpm|exe     # package
 ```
 
+## v1.26.0
+
+- New builtins: `eof`, `sb_version`, `chr`, `ord`, `emit` (write without newline).
+- New libs: `sbn` (typed config), `store` (file-backed kv with ttl + queue), `formats` (json-path/ini/toml/front-matter), `debug` (assert/strict/expect_error), `url` (parse/build/encode).
+- CLI: `list`, `remove`, `info`, `search`, `env`, `clean`, `lock`, `outdated`, `completions`, `upgrade`, `uninstall`, `pack tar`.
+- REPL: `:ver`, `:mods`, and `?topic` help.
+- `std/lists` grew sort_by/group_by/flatten/take/median/mode and friends.
+
 ## v1.17.0
 
 - Comparisons work with symbols too: `< > <= >= == !=`.
@@ -51,7 +59,7 @@ See `sb-ai-test/PROMPT_FOR_AI.md` and `~/.config/opencode/skills/shimbabomb/SKIL
 
 ## Std
 
-`std/` — maths, lists, strings, files, crypto, datetime, ui, shimgui, fp, game, ketiwe, ketiwe3d
+`std/` — maths, lists, strings, files, crypto, datetime, ui, shimgui, fp, game, ketiwe, ketiwe3d, sbn, store, formats, debug, url
 
 ## Docs
 

@@ -1,0 +1,12 @@
+SB
+## net_fetch — http client demo (http + formats)
+## run: sb examples/net_fetch.sb   (needs network)
+pls bring http.
+pls bring formats.
+
+set r to http_get_full with "https://example.com".
+say r["status"].
+say json_get with parse_json with "{\"ok\": true}" and "ok".
+set q to query_encode with map with "a" and "1" and "b" and "2".
+say q.
+say query_escape with "hello world".

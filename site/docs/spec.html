@@ -129,7 +129,7 @@ footer{margin-top:64px;text-align:center;color:var(--ink-soft);font-family:'Cave
   <li>logic: <code>and</code> <code>or</code> <code>not</code></li>
   <li>calls: <code>foo with 1 and 2</code> or <code>foo(1, 2)</code>. Lists/maps get <code>item with i and L</code>, <code>L[i]</code>, <code>m["k"]</code></li>
 </ul>
-<div class="warn"><b>Precedence trap:</b> <code>item with 0 and X plus 1</code> parses as <code>item with 0 and (X plus 1)</code> → crash. Hoist: <code>set t to item with 0 and X.</code> then <code>t plus 1</code>.</div>
+<div class="warn"><b>Precedence trap:</b> <code>plus</code>/<code>minus</code>/<code>times</code>/<code>divided by</code> right after a with-call argument fold into that argument: <code>length with s minus 1</code> is <code>length(s minus 1)</code> (crash), and <code>item with 0 and X plus 1</code> is <code>item with 0 and (X plus 1)</code> (crash). Hoist: <code>set n to length with s.</code> then <code>n minus 1</code>. Exceptions: <code>mod</code> and <code>divided evenly by</code> never fold, and if the right side starts another call the operator applies to the result instead — <code>sum with xs divided by length with xs</code> is <code>sum(xs) divided by length(xs)</code>.</div>
 
 <h2 id="scope"><span class="num">5</span>scoping & mutability — the law</h2>
 <p><mark>This is the #1 source of bugs for AIs.</mark></p>

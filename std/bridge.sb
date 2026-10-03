@@ -140,3 +140,72 @@ define bridge_recommend as
   end
   give back map with "backend" and "sometui" and "reason" and "No DISPLAY, pure terminal, no X11 needed" and "w" and w and "h" and h.
 end
+
+## — M batch: unified ui_* (backend auto-picked, terminal-first) —————————
+
+define ui_text with row and col and txt as
+  give back bridge_text with row and col and txt.
+end
+
+define ui_box with row and col and w and h as
+  give back bridge_box with row and col and w and h.
+end
+
+define ui_button with row and col and label and active as
+  give back bridge_button with row and col and label and active.
+end
+
+define ui_input with row and col and w and val as
+  give back bridge_input with row and col and w and val.
+end
+
+define ui_list with row and col and w and items and selected as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    give back selected.
+  end
+  tui_list with row and col and w and items and selected.
+  give back selected.
+end
+
+define ui_progress with row and col and w and pct as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    give back pct.
+  end
+  tui_progress with row and col and w and pct.
+  give back pct.
+end
+
+define ui_table with row and col and headers and rows and widths as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    give back 0.
+  end
+  tui_table with row and col and headers and rows and widths.
+  give back 0.
+end
+
+define ui_menu with row and col and items and selected as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    give back selected.
+  end
+  give back tui_menu with row and col and items and selected.
+end
+
+define ui_confirm with row and col and question as
+  set be to bridge_backend with.
+  if be is "shimgui" then
+    give back 1.
+  end
+  give back tui_confirm with row and col and question.
+end
+
+define ui_status with txt as
+  give back bridge_status with txt.
+end
+
+define ui_clear with as
+  give back bridge_clear with.
+end

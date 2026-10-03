@@ -144,6 +144,10 @@ cp "$SRC_DIR"/*.c "$SRC_DIR"/*.h "$DATA_DIR/src/"
 cp "$STD_DIR"/*.sb "$DATA_DIR/std/" 2>/dev/null || true
 cp "$SCRIPT_DIR/VERSION" "$DATA_DIR/VERSION" 2>/dev/null || cp VERSION "$DATA_DIR/VERSION" 2>/dev/null || echo "unknown" > "$DATA_DIR/VERSION"
 
+# resolve version before the wrapper is written (the wrapper names sb.$VER)
+VER=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || cat VERSION 2>/dev/null || cat "$DATA_DIR/VERSION" 2>/dev/null || echo "unknown")
+VER=$(printf '%s' "$VER" | tr -d '\r\n')
+
 # bundle vendor libs for self-contained install (makes sb a real self-contained lang)
 VENDOR_LIB="$DATA_DIR/lib"
 if command -v ldd >/dev/null 2>&1 && [ -f "$BIN_DIR/sb" ]; then

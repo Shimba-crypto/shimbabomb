@@ -1,0 +1,70 @@
+SB
+pls bring strings.
+pls bring crypto.
+pls bring lists.
+pls bring maths.
+pls bring http.
+pls bring url.
+pls bring types.
+
+define idf with x as
+  give back x.
+end
+
+# strings.capitalize used to fold `length with s minus 1`
+set c1 to capitalize with "hello".
+assert c1 is "Hello".
+set c2 to capitalize with "a".
+assert c2 is "A".
+set c3 to capitalize with "".
+assert c3 is "".
+
+# crypto.random_hex dropped the length suffix (starts_call guard)
+set h to random_hex with 12.
+assert length with h is 12.
+
+# lists.sort_by used an out-of-range index sentinel
+set xs to list with 3 and 1 and 2.
+set srt to sort_by with xs and idf.
+assert srt is list with 1 and 2 and 3.
+set ys to list with 1 and 2 and 3.
+assert sort_by with ys and idf is list with 1 and 2 and 3.
+
+# http.query_escape used a shell and broke on quotes
+set e to query_escape with "it's a/b".
+assert e is "it%27s%20a%2Fb".
+
+# maths sanity
+assert gcd with 12 and 18 is 6.
+
+# lists.index_of
+set ix to list with 10 and 20 and 30.
+assert index_of with ix and 20 is 1.
+assert index_of with ix and 99 is 0 minus 1.
+
+# strings.starts_with / ends_with / repeat
+assert starts_with with "hello" and "he" is 1.
+assert starts_with with "hello" and "lo" is 0.
+assert ends_with with "hello" and "lo" is 1.
+assert ends_with with "hello" and "he" is 0.
+assert repeat with "ab" and 3 is "ababab".
+assert repeat with "ab" and 0 is "".
+
+# http.query_build escapes keys and values
+set qb to query_build with map with "a" and "1 2".
+assert qb is "a=1%202".
+
+# url.url_with_query replaces / appends
+assert url_with_query with "https://x.com/p?a=1" and "a" and "2" is "https://x.com/p?a=2".
+assert url_with_query with "https://x.com/p?a=1" and "b" and "9" is "https://x.com/p?a=1&b=9".
+
+# types.check_list_of names the offending index
+set bad to list with 1 and "x".
+set ok to 0.
+try
+  check_list_of with bad and "number".
+catch evar
+  set pos to find with evar and "list[1]".
+  if pos is greater than 0 minus 1 then set ok to 1. end
+end.
+assert ok is 1.

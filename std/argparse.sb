@@ -15,9 +15,9 @@ define arg_parse with spec and argv as
     set a to item with i and argv.
     loop s through spec then
       if a is s["name"] then
-        set nxt to item with i plus 1 and argv.
-        if nxt then
-          set out[a] to nxt.
+        set ni to i plus 1.
+        if ni is less than n then
+          set out[a] to item with ni and argv.
         otherwise
           set out[a] to 1.
         end

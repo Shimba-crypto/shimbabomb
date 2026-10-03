@@ -1,0 +1,28 @@
+SB
+## url_demo — URL parse / query / build demo
+## run: sb examples/url_demo.sb
+pls bring url.
+
+set link to "https://user:pass@example.com:8443/api/v1/items?tag=web%20api&page=2#top".
+set parts to url_parse with link.
+
+say "scheme:  " plus parts["scheme"].
+say "host:    " plus parts["host"].
+say "port:    " plus to_string with parts["port"].
+say "path:    " plus parts["path"].
+say "query:   " plus parts["query"].
+say "frag:    " plus parts["fragment"].
+say "user:    " plus parts["user"].
+
+set tag to url_query_get with link and "tag".
+say "tag:     " plus tag.
+
+set rebuilt to url_build with parts.
+say "rebuilt: " plus rebuilt.
+
+set base to "https://example.com/api/v1/items".
+say "child:   " plus url_join with base and "2".
+
+set enc to url_encode with "a b/c&d=e".
+say "encoded: " plus enc.
+say "decoded: " plus url_decode with enc.

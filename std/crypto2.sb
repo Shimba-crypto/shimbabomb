@@ -40,3 +40,45 @@ define aes_decrypt with text and key as
   set out to run with "echo -n '" plus esc_t plus "' | openssl enc -d -aes-256-cbc -a -salt -pass pass:'" plus esc_k plus "' 2>/dev/null | tr -d '\n'".
   give back out.
 end
+
+## — O batch: uuid/random/checksum/redact/sec-headers ——————————————————
+
+## uuid4 via kernel randomness (fallback: time+pid mix)
+define uuid4 as
+  set raw to run with "cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '\n'".
+  set u to trim with raw.
+  if length with u is greater than 0 then
+    give back u.
+  end
+  set t to trim with run with "date +%s%N 2>/dev/null".
+  set p to trim with run with "echo $$ 2>/dev/null".
+  give back sha256 with t plus p plus "sb-salt".
+end
+
+## random_bytes with n -> hex string of n random bytes
+define random_bytes with n as
+  set out to run with "head -c " plus n plus " /dev/urandom 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n'".
+  give back trim with out.
+end
+
+## checksum_file with path -> sha256 hex ("" if missing)
+define checksum_file with path as
+  set out to run with "sha256sum '" plus path plus "' 2>/dev/null | cut -d' ' -f1 | tr -d '\n'".
+  give back trim with out.
+end
+
+## redact with text and secrets (list) -> text with each secret replaced
+define redact with text and secrets as
+  set out to text.
+  loop s through secrets then
+    if length with s is greater than 0 then
+      set out to replace with out and s and "***".
+    end
+  end
+  give back out.
+end
+
+## recommended security headers map for serve responses
+define sec_headers as
+  give back map with "X-Content-Type-Options" and "nosniff" and "X-Frame-Options" and "DENY" and "Referrer-Policy" and "no-referrer" and "Content-Security-Policy" and "default-src 'self'".
+end

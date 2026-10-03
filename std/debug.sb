@@ -1,0 +1,90 @@
+SB
+## debug — asserts, expected-errors, strict mode, error helpers (C51-75 batch)
+## Uses native: assert (assert x is y), try/catch/end, raise, err_code, err_name
+
+set DEBUG_STRICT to list with 0.
+
+define strict_on with as
+  set DEBUG_STRICT[0] to 1.
+end
+
+define strict_off with as
+  set DEBUG_STRICT[0] to 0.
+end
+
+define strict_is as
+  give back item with 0 and DEBUG_STRICT.
+end
+
+## assert with message: assert_msg with (x is 1) and "x must be 1"
+define assert_msg with cond and msg as
+  if cond then
+    give back 1.
+  end
+  raise msg.
+end
+
+## strict-aware check: raises always; in strict mode prefixes [STRICT]
+define check with cond and msg as
+  if cond then
+    give back 1.
+  end
+  set s to strict_is with.
+  if s is 1 then
+    raise "[STRICT] " plus msg.
+  end
+  raise msg.
+end
+
+## expect_error with cb and want_substr -> map {ok, err, code, line, trace}
+## cb is a zero-arg function value; want "" matches any error.
+## (catch var is a string; structured info lives in evar_info: code/message/line/trace)
+define expect_error with cb and want as
+  try
+    cb with.
+  catch evar
+    set emsg to evar.
+    set info to evar_info.
+    set hit to 1.
+    if length with want is greater than 0 then
+      set pos to find with emsg and want.
+      if pos is less than 0 then
+        set hit to 0.
+      end
+    end
+    if hit is 0 then
+      raise "wrong error: got [" plus emsg plus "] want substring [" plus want plus "]".
+    end
+    give back map with "ok" and 1 and "err" and emsg and "code" and info["code"] and "line" and info["line"] and "trace" and info["trace"].
+  end
+  raise "expected error but none was raised".
+end
+
+## warn once per message (dedup via registry list)
+set DEBUG_WARNED to list with.
+
+define warn_once with msg as
+  set n to length with DEBUG_WARNED.
+  count i from 0 to n minus 1 then
+    if item with i and DEBUG_WARNED is msg then
+      give back 0.
+    end
+  end
+  add_to with DEBUG_WARNED and msg.
+  say "[WARN] " plus msg.
+  give back 1.
+end
+
+## describe an <evar>_info map -> "NAME(code) line L: message"
+define err_describe with info as
+  set code to info["code"].
+  set nm to err_name with code.
+  set emsg to info["message"].
+  set eline to info["line"].
+  give back nm plus "(" plus code plus ") line " plus eline plus ": " plus emsg.
+end
+
+## trace of an <evar>_info map (empty string if none captured)
+define err_trace_of with info as
+  give back info["trace"].
+end

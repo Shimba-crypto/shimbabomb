@@ -50,3 +50,136 @@ end
 define ws_close with ws as
   give back map with "url" and ws["url"] and "connected" and 0.
 end
+
+## — H batch: timeout/status/download/auth/query ——————————————————————
+
+## GET with timeout secs + retries -> body ("" on failure, never raises)
+define http_get_retry with url and timeout_secs and retries as
+  set attempt to 0.
+  while attempt is less than retries plus 1 then
+    set cmd to "curl -sL --max-time " plus timeout_secs plus " '" plus url plus "' 2>/dev/null".
+    set out to run with cmd.
+    if length with out is greater than 0 then
+      give back out.
+    end
+    set attempt to attempt plus 1.
+  end
+  give back "".
+end
+
+## GET returning map {status, body}
+define http_get_full with url as
+  set cmd to "curl -sL -o /tmp/sb_http_body.txt -w '%{http_code}' '" plus url plus "' 2>/dev/null".
+  set code to trim with run with cmd.
+  set body to read_file with "/tmp/sb_http_body.txt".
+  set st to to_number with code.
+  give back map with "status" and st and "body" and body.
+end
+
+## POST returning map {status, body}
+define http_post_full with url and body as
+  write_file with "/tmp/sb_http_post.txt" and body.
+  set cmd to "curl -s -X POST -H 'Content-Type: application/json' --data @/tmp/sb_http_post.txt -o /tmp/sb_http_body.txt -w '%{http_code}' '" plus url plus "' 2>/dev/null".
+  set code to trim with run with cmd.
+  set rbody to read_file with "/tmp/sb_http_body.txt".
+  set st to to_number with code.
+  give back map with "status" and st and "body" and rbody.
+end
+
+## download url to file -> map {ok, path}
+define http_download with url and dest as
+  set cmd to "curl -sL --max-time 120 '" plus url plus "' -o '" plus dest plus "' 2>/dev/null && echo 1 || echo 0".
+  set ok to trim with run with cmd.
+  if ok is "1" then
+    give back map with "ok" and 1 and "path" and dest.
+  end
+  give back map with "ok" and 0 and "path" and dest.
+end
+
+## GET with bearer token -> body
+define http_get_bearer with url and token as
+  set cmd to "curl -sL --max-time 30 -H 'Authorization: Bearer " plus token plus "' '" plus url plus "' 2>/dev/null".
+  give back run with cmd.
+end
+
+## GET with basic auth -> body
+define http_get_basic with url and user and pass as
+  set cmd to "curl -sL --max-time 30 -u '" plus user plus ":" plus pass plus "' '" plus url plus "' 2>/dev/null".
+  give back run with cmd.
+end
+
+## map -> "k1=v1&k2=v2" (values NOT escaped; use query_escape for safety)
+define query_encode with params as
+  set out to "".
+  set ks to keys with params.
+  set first to 1.
+  loop k through ks then
+    if first is 0 then
+      set out to out plus "&".
+    end
+    set first to 0.
+    set out to out plus k plus "=" plus params[k].
+  end
+  give back out.
+end
+
+## hex digit for percent-encoding
+define query_hex with n as
+  set digits to "0123456789ABCDEF".
+  give back substr with digits and n and 1.
+end
+
+## percent-encode a string (RFC 3986 unreserved chars kept, no shell deps)
+define query_escape with s as
+  set out to "".
+  set n to length with s.
+  count i from 0 to n minus 1 then
+    set c to substr with s and i and 1.
+    set o to ord with c.
+    set keep to 0.
+    if o is greater than 64 then
+      if o is less than 91 then set keep to 1. end
+    end
+    if o is greater than 96 then
+      if o is less than 123 then set keep to 1. end
+    end
+    if o is greater than 47 then
+      if o is less than 58 then set keep to 1. end
+    end
+    if c is "-" then set keep to 1. end
+    if c is "_" then set keep to 1. end
+    if c is "." then set keep to 1. end
+    if c is "~" then set keep to 1. end
+    if keep is 1 then
+      set out to out plus c.
+    otherwise
+      set hi to o divided evenly by 16.
+      set lo to o minus hi times 16.
+      set hs to query_hex with hi.
+      set ls to query_hex with lo.
+      set out to out plus "%" plus hs plus ls.
+    end
+  end
+  give back out.
+end
+
+## map -> "k=v&k2=v2" with keys and values percent-encoded (safe form)
+define query_build with params as
+  set out to "".
+  set ks to keys with params.
+  set first to 1.
+  loop k through ks then
+    if first is 0 then
+      set out to out plus "&".
+    end
+    set first to 0.
+    set ek to query_escape with k.
+    set v to params[k].
+    set vs to to_string with v.
+    set ev to query_escape with vs.
+    set out to out plus ek.
+    set out to out plus "=".
+    set out to out plus ev.
+  end
+  give back out.
+end

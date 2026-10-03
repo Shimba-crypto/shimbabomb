@@ -1,0 +1,162 @@
+SB
+## sbn — ShimbaBomb Notation: tiny typed config/data format for SB
+##   ## comment
+##   name "myapp"
+##   port 8080
+##   debug true
+##   ratio 0.75
+##   tags ["web", "api"]
+##   [server]
+##   host "localhost"
+## Provides: sbn_decode, sbn_encode, sbn_scalar, sbn_load, sbn_save
+
+## parse one scalar token -> SB value (string/number/bool/list)
+define sbn_scalar with tok as
+  set t to trim with tok.
+  if length with t is 0 then give back "". end
+  if substr with t and 0 and 1 is "\"" then
+    set tlen2 to length with t.
+    set innerlen2 to tlen2 minus 2.
+    set inner to substr with t and 1 and innerlen2.
+    give back inner.
+  end
+  if t is "true" then give back 1. end
+  if t is "false" then give back 0. end
+  if t is "null" then give back 0 minus 0. end
+  if substr with t and 0 and 1 is "[" then
+    set tlen to length with t.
+    set innerlen to tlen minus 2.
+    set inner2 to substr with t and 1 and innerlen.
+    set parts to split with inner2 and ",".
+    set out to list with.
+    loop p through parts then
+      add_to with out and sbn_scalar with p.
+    end
+    give back out.
+  end
+  set n to to_number with t.
+  set roundtrip to to_string with n.
+  if roundtrip is t then
+    give back n.
+  end
+  ## try float round-trip loosely: leading digit or minus means number attempt
+  set c0 to substr with t and 0 and 1.
+  if c0 is "-" then give back n. end
+  set isdig to find with "0123456789" and c0.
+  if isdig is less than 0 then
+    give back t.
+  end
+  give back n.
+end
+
+## encode one SB value -> sbn token
+define sbn_emit with v as
+  set t to type_of with v.
+  if t is "text" then
+    give back "\"" plus v plus "\"".
+  end
+  if t is "list" then
+    set parts to list with.
+    loop el through v then
+      set pe to sbn_emit with el.
+      add_to with parts and pe.
+    end
+    set joined to join with parts and ", ".
+    give back "[" plus joined plus "]".
+  end
+  give back to_string with v.
+end
+
+## decode full document -> map (sections become nested maps)
+## NOTE: SB maps copy on fetch, so we build each section locally then flush.
+define sbn_decode with text as
+  set root to map with.
+  set cursec to "".
+  set curmap to map with.
+  set lines to split with text and "\n".
+  loop raw through lines then
+    set ln to trim with raw.
+    set skip to 0.
+    if length with ln is 0 then set skip to 1. end
+    if skip is 0 then
+      set c0 to substr with ln and 0 and 1.
+      if c0 is "#" then set skip to 1. end
+    end
+    if skip is 0 then
+      set c0b to substr with ln and 0 and 1.
+      if c0b is "[" then
+        if length with cursec is 0 then
+          set ks to keys with curmap.
+          loop k3 through ks then
+            set root[k3] to curmap[k3].
+          end
+        otherwise
+          set root[cursec] to curmap.
+        end
+        set lnlen to length with ln.
+        set seclen to lnlen minus 2.
+        set secname to substr with ln and 1 and seclen.
+        set cursec to trim with secname.
+        set curmap to map with.
+      otherwise
+        set sp to find with ln and " ".
+        if sp is less than 0 then
+          set curmap[ln] to 1.
+        otherwise
+          set k to substr with ln and 0 and sp.
+          set startat to sp plus 1.
+          set lnlen2 to length with ln.
+          set restlen to lnlen2 minus sp minus 1.
+          set restraw to substr with ln and startat and restlen.
+          set rest to trim with restraw.
+          set curmap[k] to sbn_scalar with rest.
+        end
+      end
+    end
+  end
+  if length with cursec is 0 then
+    set ks2 to keys with curmap.
+    loop k4 through ks2 then
+      set root[k4] to curmap[k4].
+    end
+  otherwise
+    set root[cursec] to curmap.
+  end
+  give back root.
+end
+
+## encode map -> sbn text (nested maps become [sections], one level)
+define sbn_encode with m as
+  set out to "".
+  set ks to keys with m.
+  loop k through ks then
+    set v to m[k].
+    if type_of with v is "map" then
+      set out to out.
+    otherwise
+      set ev to sbn_emit with v.
+      set out to out plus k plus " " plus ev plus "\n".
+    end
+  end
+  loop k2 through ks then
+    set v2 to m[k2].
+    if type_of with v2 is "map" then
+      set out to out plus "[" plus k2 plus "]\n".
+      set sub to keys with v2.
+      loop sk through sub then
+        set field to v2[sk].
+        set ev2 to sbn_emit with field.
+        set out to out plus sk plus " " plus ev2 plus "\n".
+      end
+    end
+  end
+  give back out.
+end
+
+define sbn_load with path as
+  give back sbn_decode with read_file with path.
+end
+
+define sbn_save with path and m as
+  give back write_file with path and sbn_encode with m.
+end

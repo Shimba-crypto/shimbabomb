@@ -1,0 +1,445 @@
+SB
+## url — URL parse/build/decode (RFC 3986 subset), zero deps
+## Provides: url_parse, url_build, url_host, url_path, url_scheme, url_query,
+##           url_fragment, url_port, url_is_abs, url_join, url_query_get,
+##           url_decode, url_encode
+## NOTE: SB maps copy on fetch — write components back through the owning map.
+## NOTE: stage `length with x` before arithmetic (trailing ops fold into a
+##       with-call's own argument).
+
+## value 0-15 for a hex digit, -1 when not a hex digit
+define url_hexval with c as
+  set o to ord with c.
+  if o is greater than 47 then
+    if o is less than 58 then give back o minus 48. end
+  end
+  if o is greater than 64 then
+    if o is less than 71 then give back o minus 55. end
+  end
+  if o is greater than 96 then
+    if o is less than 103 then give back o minus 87. end
+  end
+  give back 0 minus 1.
+end
+
+## hex digit string for 0-15
+define url_hex with n as
+  set digits to "0123456789ABCDEF".
+  give back substr with digits and n and 1.
+end
+
+## percent-decode (+ becomes space, %XX -> byte; invalid escapes kept)
+define url_decode with s as
+  set out to "".
+  set n to length with s.
+  set i to 0.
+  while i is less than n then
+    set c to substr with s and i and 1.
+    if c is "+" then
+      set out to out plus " ".
+      set i to i plus 1.
+    otherwise
+      if c is "%" then
+        set i2 to i plus 2.
+        if i2 is less than n then
+          set i1 to i plus 1.
+          set h1 to substr with s and i1 and 1.
+          set h2 to substr with s and i2 and 1.
+          set d1 to url_hexval with h1.
+          set d2 to url_hexval with h2.
+          if d1 is greater than 0 minus 1 then
+            if d2 is greater than 0 minus 1 then
+              set code to d1 times 16.
+              set code to code plus d2.
+              set ch to chr with code.
+              set out to out plus ch.
+              set i to i plus 3.
+            otherwise
+              set out to out plus c.
+              set i to i plus 1.
+            end
+          otherwise
+            set out to out plus c.
+            set i to i plus 1.
+          end
+        otherwise
+          set out to out plus c.
+          set i to i plus 1.
+        end
+      otherwise
+        set out to out plus c.
+        set i to i plus 1.
+      end
+    end
+  end
+  give back out.
+end
+
+## percent-encode (RFC 3986 unreserved kept)
+define url_encode with s as
+  set out to "".
+  set n to length with s.
+  count i from 0 to n minus 1 then
+    set c to substr with s and i and 1.
+    set o to ord with c.
+    set keep to 0.
+    if o is greater than 64 then
+      if o is less than 91 then set keep to 1. end
+    end
+    if o is greater than 96 then
+      if o is less than 123 then set keep to 1. end
+    end
+    if o is greater than 47 then
+      if o is less than 58 then set keep to 1. end
+    end
+    if c is "-" then set keep to 1. end
+    if c is "_" then set keep to 1. end
+    if c is "." then set keep to 1. end
+    if c is "~" then set keep to 1. end
+    if keep is 1 then
+      set out to out plus c.
+    otherwise
+      set hi to o divided evenly by 16.
+      set lo to o minus hi times 16.
+      set hs to url_hex with hi.
+      set ls to url_hex with lo.
+      set out to out plus "%" plus hs plus ls.
+    end
+  end
+  give back out.
+end
+
+## parse -> map {ok, scheme, user, pass, host, port, path, query, fragment}
+define url_parse with url as
+  set out to map with "ok" and 0 and "scheme" and "" and "user" and "" and "pass" and "" and "host" and "" and "port" and 0 and "path" and "" and "query" and "" and "fragment" and "".
+  set u to trim with url.
+  set u0len to length with u.
+  if u0len is 0 then give back out. end
+
+  ## fragment
+  set hash to find with u and "#".
+  if hash is greater than 0 minus 1 then
+    set flen to u0len minus hash minus 1.
+    set frag to substr with u and hash plus 1 and flen.
+    set out["fragment"] to frag.
+    set u to substr with u and 0 and hash.
+  end
+
+  ## query
+  set qm to find with u and "?".
+  if qm is greater than 0 minus 1 then
+    set ulen0 to length with u.
+    set qlen to ulen0 minus qm minus 1.
+    set qs to substr with u and qm plus 1 and qlen.
+    set out["query"] to qs.
+    set u to substr with u and 0 and qm.
+  end
+
+  ## scheme (only when ':' precedes any '/')
+  set colon to find with u and ":".
+  set schpos to 0 minus 1.
+  if colon is greater than 0 minus 1 then
+    set slashpos to find with u and "/".
+    if slashpos is less than 0 then
+      set schpos to colon.
+    otherwise
+      if colon is less than slashpos then set schpos to colon. end
+    end
+  end
+  if schpos is greater than 0 minus 1 then
+    set schemeraw to substr with u and 0 and schpos.
+    set out["scheme"] to lower with schemeraw.
+    set schlen to length with u.
+    set restlen to schlen minus schpos minus 1.
+    set schnext to schpos plus 1.
+    set u to substr with u and schnext and restlen.
+  end
+
+  ## authority (//...)
+  set two to substr with u and 0 and 2.
+  if two is "//" then
+    set ulen1 to length with u.
+    set cut2 to ulen1 minus 2.
+    set u to substr with u and 2 and cut2.
+    set slash to find with u and "/".
+    set auth to u.
+    if slash is greater than 0 minus 1 then
+      set auth to substr with u and 0 and slash.
+      set ulen2 to length with u.
+      set plen to ulen2 minus slash.
+      set u to substr with u and slash and plen.
+    otherwise
+      set u to "".
+    end
+
+    ## userinfo
+    set at to find with auth and "@".
+    if at is greater than 0 minus 1 then
+      set ui to substr with auth and 0 and at.
+      set colon2 to find with ui and ":".
+      if colon2 is greater than 0 minus 1 then
+        set out["user"] to substr with ui and 0 and colon2.
+        set uilen to length with ui.
+        set passlen to uilen minus colon2 minus 1.
+        set passt to substr with ui and colon2 plus 1 and passlen.
+        set out["pass"] to passt.
+      otherwise
+        set out["user"] to ui.
+      end
+      set alen to length with auth.
+      set authlen to alen minus at minus 1.
+      set anext to at plus 1.
+      set auth to substr with auth and anext and authlen.
+    end
+
+    ## host / port (IPv6 in brackets supported)
+    set firstch to substr with auth and 0 and 1.
+    if firstch is "[" then
+      set rb to find with auth and "]".
+      if rb is greater than 0 minus 1 then
+        set hl to rb plus 1.
+        set out["host"] to substr with auth and 0 and hl.
+        set alen2 to length with auth.
+        set rlen to alen2 minus rb minus 1.
+        set rstart to rb plus 1.
+        set rest to substr with auth and rstart and rlen.
+        set firstr to substr with rest and 0 and 1.
+        if firstr is ":" then
+          set rl2 to length with rest.
+          set ptlen2 to rl2 minus 1.
+          set ptxt2 to substr with rest and 1 and ptlen2.
+          set pnum to to_number with ptxt2.
+          set out["port"] to pnum.
+        end
+      otherwise
+        set out["host"] to auth.
+      end
+    otherwise
+      set colon3 to find with auth and ":".
+      if colon3 is greater than 0 minus 1 then
+        set out["host"] to substr with auth and 0 and colon3.
+        set alen3 to length with auth.
+        set ptlen to alen3 minus colon3 minus 1.
+        set ptxt to substr with auth and colon3 plus 1 and ptlen.
+        set ptl to length with ptxt.
+        if ptl is greater than 0 then
+          set out["port"] to to_number with ptxt.
+        end
+      otherwise
+        set out["host"] to auth.
+      end
+    end
+  end
+
+  set out["path"] to u.
+  set out["ok"] to 1.
+  give back out.
+end
+
+## parts map -> url string
+define url_build with parts as
+  set out to "".
+  set scheme to parts["scheme"].
+  set sl to length with scheme.
+  if sl is greater than 0 then
+    set out to out plus scheme.
+    set out to out plus ":".
+  end
+  set host to parts["host"].
+  set hlen to length with host.
+  if hlen is greater than 0 then
+    set out to out plus "//".
+    set user to parts["user"].
+    set ul to length with user.
+    if ul is greater than 0 then
+      set out to out plus user.
+      set pass to parts["pass"].
+      set pl to length with pass.
+      if pl is greater than 0 then
+        set out to out plus ":".
+        set out to out plus pass.
+      end
+      set out to out plus "@".
+    end
+    set out to out plus host.
+    set port to parts["port"].
+    if port is greater than 0 then
+      set ps to to_string with port.
+      set out to out plus ":".
+      set out to out plus ps.
+    end
+  end
+  set path to parts["path"].
+  set out to out plus path.
+  set query to parts["query"].
+  set ql to length with query.
+  if ql is greater than 0 then
+    set out to out plus "?".
+    set out to out plus query.
+  end
+  set fragment to parts["fragment"].
+  set fl to length with fragment.
+  if fl is greater than 0 then
+    set out to out plus "#".
+    set out to out plus fragment.
+  end
+  give back out.
+end
+
+define url_scheme with url as
+  set p to url_parse with url.
+  give back p["scheme"].
+end
+
+define url_host with url as
+  set p to url_parse with url.
+  give back p["host"].
+end
+
+define url_path with url as
+  set p to url_parse with url.
+  give back p["path"].
+end
+
+define url_query with url as
+  set p to url_parse with url.
+  give back p["query"].
+end
+
+define url_fragment with url as
+  set p to url_parse with url.
+  give back p["fragment"].
+end
+
+## explicit port, else the scheme default (https 443, http 80, ftp 21), else 0
+define url_port with url as
+  set p to url_parse with url.
+  set pn to p["port"].
+  if pn is greater than 0 then give back pn. end
+  set scheme to p["scheme"].
+  if scheme is "https" then give back 443. end
+  if scheme is "http" then give back 80. end
+  if scheme is "ftp" then give back 21. end
+  give back 0.
+end
+
+define url_is_abs with url as
+  set p to url_parse with url.
+  set sch to p["scheme"].
+  set sl to length with sch.
+  if sl is greater than 0 then give back 1. end
+  give back 0.
+end
+
+## first value for key in the query string (percent-decoded), "" when absent
+define url_query_get with url and key as
+  set p to url_parse with url.
+  set qs to p["query"].
+  set pairs to split with qs and "&".
+  loop pair through pairs then
+    set eq to find with pair and "=".
+    if eq is greater than 0 minus 1 then
+      set kraw to substr with pair and 0 and eq.
+      set plen to length with pair.
+      set vlen to plen minus eq minus 1.
+      set vnext to eq plus 1.
+      set vraw to substr with pair and vnext and vlen.
+      set kd to url_decode with kraw.
+      if kd is key then
+        give back url_decode with vraw.
+      end
+    otherwise
+      set kd2 to url_decode with pair.
+      if kd2 is key then give back "". end
+    end
+  end
+  give back "".
+end
+
+## resolve rel against base (absolute rel wins; otherwise last-slash join)
+define url_join with base and rel as
+  set abs to url_is_abs with rel.
+  if abs is 1 then give back rel. end
+  set rl to length with rel.
+  if rl is greater than 0 then
+    set firstr to substr with rel and 0 and 1.
+    if firstr is "/" then
+      set b to url_parse with base.
+      set pre to "".
+      set scheme to b["scheme"].
+      set sl to length with scheme.
+      if sl is greater than 0 then
+        set pre to scheme.
+        set pre to pre plus "://".
+      end
+      set host to b["host"].
+      set pre to pre plus host.
+      set port to b["port"].
+      if port is greater than 0 then
+        set ps to to_string with port.
+        set pre to pre plus ":".
+        set pre to pre plus ps.
+      end
+      give back pre plus rel.
+    end
+  end
+  set n to length with base.
+  set i to n minus 1.
+  set cut to 0 minus 1.
+  while i is greater than 0 minus 1 then
+    set ch to substr with base and i and 1.
+    if ch is "/" then
+      set cut to i.
+      set i to 0 minus 2.
+    otherwise
+      set i to i minus 1.
+    end
+  end
+  if cut is less than 0 then give back base. end
+  set keep to cut plus 1.
+  set head to substr with base and 0 and keep.
+  give back head plus rel.
+end
+
+## set/replace one query parameter (percent-encoded) and rebuild the url
+## url_with_query with url and key and value -> url
+## NOTE: a param whose decoded key equals `key` is replaced; others kept.
+define url_with_query with url and key and value as
+  set p to url_parse with url.
+  set qs to p["query"].
+  set pairs to split with qs and "&".
+  set out to "".
+  set first to 1.
+  loop pair through pairs then
+    set plen to length with pair.
+    if plen is greater than 0 then
+      set eq to find with pair and "=".
+      set keep to 0.
+      if eq is greater than 0 minus 1 then
+        set kraw to substr with pair and 0 and eq.
+        set kd to url_decode with kraw.
+        if kd is not key then set keep to 1. end
+      otherwise
+        set pd to url_decode with pair.
+        if pd is not key then set keep to 1. end
+      end
+      if keep is 1 then
+        if first is 0 then
+          set out to out plus "&".
+        end
+        set first to 0.
+        set out to out plus pair.
+      end
+    end
+  end
+  if first is 0 then
+    set out to out plus "&".
+  end
+  set ek to url_encode with key.
+  set ev to url_encode with value.
+  set out to out plus ek.
+  set out to out plus "=".
+  set out to out plus ev.
+  set p["query"] to out.
+  give back url_build with p.
+end

@@ -1,0 +1,223 @@
+SB
+## formats — json-path, ini, toml-subset, front-matter, markdown bits (P376-400)
+## Uses: parse_json, split, trim, substr, find, sbn_scalar (via sbn)
+
+pls bring sbn.
+
+## json_get with data and "a.b.0" -> value (0 when missing)
+define json_get with data and path as
+  set cur to data.
+  set parts to split with path and ".".
+  loop seg through parts then
+    set t to type_of with cur.
+    if t is "map" then
+      if has_key with cur and seg then
+        set cur to cur[seg].
+      otherwise
+        give back 0.
+      end
+    otherwise
+      if t is "list" then
+        set idx to to_number with seg.
+        if idx is less than length with cur then
+          set cur to item with idx and cur.
+        otherwise
+          give back 0.
+        end
+      otherwise
+        give back 0.
+      end
+    end
+  end
+  give back cur.
+end
+
+## ini_decode with text -> map of maps ([section] + key=value, ";" "#" comments)
+define ini_decode with text as
+  set root to map with.
+  set cursec to "".
+  set curmap to map with.
+  set lines to split with text and "\n".
+  loop raw through lines then
+    set ln to trim with raw.
+    set skip to 0.
+    if length with ln is 0 then set skip to 1. end
+    if skip is 0 then
+      set c0 to substr with ln and 0 and 1.
+      if c0 is ";" then set skip to 1. end
+      if c0 is "#" then set skip to 1. end
+    end
+    if skip is 0 then
+      set c1 to substr with ln and 0 and 1.
+      if c1 is "[" then
+        if length with cursec is 0 then
+          set ks to keys with curmap.
+          loop k3 through ks then
+            set root[k3] to curmap[k3].
+          end
+        otherwise
+          set root[cursec] to curmap.
+        end
+        set lnlen to length with ln.
+        set seclen to lnlen minus 2.
+        set secraw to substr with ln and 1 and seclen.
+        set cursec to trim with secraw.
+        set curmap to map with.
+      otherwise
+        set eq to find with ln and "=".
+        if eq is less than 0 then
+          set curmap[ln] to 1.
+        otherwise
+          set k to trim with substr with ln and 0 and eq.
+          set lnlen2 to length with ln.
+          set vlen to lnlen2 minus eq minus 1.
+          set vraw to substr with ln and eq plus 1 and vlen.
+          set curmap[k] to trim with vraw.
+        end
+      end
+    end
+  end
+  if length with cursec is 0 then
+    set ks2 to keys with curmap.
+    loop k4 through ks2 then
+      set root[k4] to curmap[k4].
+    end
+  otherwise
+    set root[cursec] to curmap.
+  end
+  give back root.
+end
+
+## toml_decode subset: ini shape + typed scalars + inline lists (via sbn_scalar)
+define toml_decode with text as
+  set root to map with.
+  set cursec to "".
+  set curmap to map with.
+  set lines to split with text and "\n".
+  loop raw through lines then
+    set ln to trim with raw.
+    set skip to 0.
+    if length with ln is 0 then set skip to 1. end
+    if skip is 0 then
+      set c0 to substr with ln and 0 and 1.
+      if c0 is "#" then set skip to 1. end
+    end
+    if skip is 0 then
+      set c1 to substr with ln and 0 and 1.
+      if c1 is "[" then
+        if length with cursec is 0 then
+          set ks to keys with curmap.
+          loop k3 through ks then
+            set root[k3] to curmap[k3].
+          end
+        otherwise
+          set root[cursec] to curmap.
+        end
+        set lnlen to length with ln.
+        set seclen to lnlen minus 2.
+        set secraw to substr with ln and 1 and seclen.
+        set cursec to trim with secraw.
+        set curmap to map with.
+      otherwise
+        set eq to find with ln and "=".
+        if eq is less than 0 then
+          set curmap[ln] to 1.
+        otherwise
+          set k to trim with substr with ln and 0 and eq.
+          set lnlen2 to length with ln.
+          set vlen to lnlen2 minus eq minus 1.
+          set vraw to substr with ln and eq plus 1 and vlen.
+          set vtrim to trim with vraw.
+          set curmap[k] to sbn_scalar with vtrim.
+        end
+      end
+    end
+  end
+  if length with cursec is 0 then
+    set ks2 to keys with curmap.
+    loop k4 through ks2 then
+      set root[k4] to curmap[k4].
+    end
+  otherwise
+    set root[cursec] to curmap.
+  end
+  give back root.
+end
+
+## front_matter with text -> {meta: toml-decoded head, body: rest}
+## head is fenced by --- lines
+define front_matter with text as
+  set lines to split with text and "\n".
+  set n to length with lines.
+  set fstart to 0 minus 1.
+  set ffin to 0 minus 1.
+  count i from 0 to n minus 1 then
+    if trim with item with i and lines is "---" then
+      if fstart is less than 0 then
+        set fstart to i.
+      otherwise
+        if ffin is less than 0 then
+          set ffin to i.
+        end
+      end
+    end
+  end
+  set emptymap to map with.
+  if fstart is less than 0 then
+    give back map with "meta" and emptymap and "body" and text.
+  end
+  if ffin is less than 0 then
+    give back map with "meta" and emptymap and "body" and text.
+  end
+  set head to "".
+  set js to fstart plus 1.
+  set je to ffin minus 1.
+  count j from js to je then
+    set lj to item with j and lines.
+    set head to head plus lj plus "\n".
+  end
+  set body to "".
+  set ks3 to ffin plus 1.
+  set ke to n minus 1.
+  count k2 from ks3 to ke then
+    set lb to item with k2 and lines.
+    set body to body plus lb plus "\n".
+  end
+  set decoded to toml_decode with head.
+  give back map with "meta" and decoded and "body" and body.
+end
+
+## md_headings with text -> list of {level, text}
+define md_headings with text as
+  set out to list with.
+  set lines to split with text and "\n".
+  loop raw through lines then
+    set ln to trim with raw.
+    if substr with ln and 0 and 1 is "#" then
+      set lvl to 0.
+      set ll to length with ln.
+      while lvl is less than ll then
+        set ch to substr with ln and lvl and 1.
+        if ch is "#" then
+          set lvl to lvl plus 1.
+        otherwise
+          set lvl to ll.
+        end
+      end
+      set tlen to length with ln.
+      set tlen2 to tlen minus lvl.
+      set title to trim with substr with ln and lvl and tlen2.
+      add_to with out and map with "level" and lvl and "text" and title.
+    end
+  end
+  give back out.
+end
+
+## md_to_text: strip #, *, `, links [t](u) -> t (best effort)
+define md_to_text with text as
+  set s1 to replace with text and "#" and "".
+  set s2 to replace with s1 and "*" and "".
+  set s3 to replace with s2 and "`" and "".
+  set s4 to replace with s3 and ">" and "".
+  give back s4.
+end

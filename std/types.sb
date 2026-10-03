@@ -3,62 +3,56 @@ SB
 ## Provides: is_number, is_string, is_list, is_map, is_bool, check_type, assert_type
 ## Usage: set x: number to 42.  (syntax sugar, checked via check_type)
 
+## real checks on the native type_of: number/text/truth/nothing/function/list/map/error
 define is_number with v as
-  if v is 0 then
-    give back 1.
-  end
-  ## duck: try math, if works it's number
-  set t to run with "echo " plus v plus " 2>/dev/null | grep -E '^[0-9]' | head -1".
-  give back 1.
+  if type_of with v is "number" then give back 1. end
+  give back 0.
 end
 
 define is_string with v as
-  set s to to_string with v.
-  if length with s is greater than 0 then
-    give back 1.
-  end
+  set t to type_of with v.
+  if t is "text" then give back 1. end
   give back 0.
 end
 
 define is_list with v as
-  set n to length with v.
-  if n is 0 then
-    give back 1.
-  end
-  give back 1.
+  if type_of with v is "list" then give back 1. end
+  give back 0.
 end
 
 define is_map with v as
-  set ks to keys with v.
-  give back length with ks.
+  if type_of with v is "map" then give back 1. end
+  give back 0.
 end
 
 define is_bool with v as
-  if v is 1 then give back 1. end
-  if v is 0 then give back 1. end
+  if type_of with v is "truth" then give back 1. end
+  give back 0.
+end
+
+define is_nothing with v as
+  if type_of with v is "nothing" then give back 1. end
+  give back 0.
+end
+
+define is_function with v as
+  if type_of with v is "function" then give back 1. end
+  give back 0.
+end
+
+## canonical spelling: accepts number/string|text/bool|truth/list/map
+define type_is with val and want as
+  set got to type_of with val.
+  if want is "string" then set want to "text". end
+  if want is "bool" then set want to "truth". end
+  if want is "array" then set want to "list". end
+  if got is want then give back 1. end
   give back 0.
 end
 
 define check_type with val and type_name as
-  if type_name is "number" then
-    if is_number with val is 0 then
-      raise "type error: expected number, got " plus to_string with val.
-    end
-  end
-  if type_name is "string" then
-    if is_string with val is 0 then
-      raise "type error: expected string".
-    end
-  end
-  if type_name is "list" then
-    if is_list with val is 0 then
-      raise "type error: expected list".
-    end
-  end
-  if type_name is "map" then
-    if is_map with val is 0 then
-      raise "type error: expected map".
-    end
+  if type_is with val and type_name is 0 then
+    raise "type error: expected " plus type_name plus ", got " plus type_of with val.
   end
   give back val.
 end
@@ -69,3 +63,58 @@ end
 
 ## colon syntax helper: x: number -> just x, but we provide helper for docs
 ## In SB you write: set x to 42.  check_type with x and "number".
+
+## — D batch: unions, element types, shapes, ints ————————————————————
+
+define is_int with v as
+  set f to floor with v.
+  if f is v then give back 1. end
+  give back 0.
+end
+
+## check_any with val and "number|string" (pipe-separated) -> val or raise
+define check_any with val and spec as
+  set parts to split with spec and "|".
+  loop pname through parts then
+    set t to trim with pname.
+    if type_is with val and t is 1 then
+      give back val.
+    end
+  end
+  raise "type error: expected " plus spec plus ", got " plus type_of with val.
+end
+
+## check_list_of with xs and "number" -> xs or raise (first bad index named)
+define check_list_of with xs and elem_type as
+  check_type with xs and "list".
+  set n to length with xs.
+  count i from 0 to n minus 1 then
+    set el to item with i and xs.
+    try
+      check_type with el and elem_type.
+    catch evar
+      set idxs to to_string with i.
+      raise "type error: list[" plus idxs plus "] " plus evar.
+    end
+  end
+  give back xs.
+end
+
+## check_map_shape with m and required_keys (list of strings) -> m or raise
+define check_map_shape with m and required_keys as
+  loop k through required_keys then
+    set present to has_key with m and k.
+    if not (present) then
+      raise "type error: missing key [" plus k plus "]".
+    end
+  end
+  give back m.
+end
+
+## default for missing/empty: value_or with val and fallback
+define value_or with val and fallback as
+  if val then
+    give back val.
+  end
+  give back fallback.
+end

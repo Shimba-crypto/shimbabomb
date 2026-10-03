@@ -1,0 +1,16 @@
+SB
+## data_sbn — SBN config round-trip demo (sbn + store)
+## run: sb examples/data_sbn.sb
+pls bring sbn.
+pls bring store.
+
+set doc to "name \"demo\"\nport 8080\n[limits]\nmax 100\n".
+set cfg to sbn_decode with doc.
+say cfg["name"].
+set srv to cfg["limits"].
+say srv["max"].
+say sbn_encode with cfg.
+set st to store_open with "/tmp/opencode/demo_cfg.json".
+set st to store_put with st and "cfg_text" and doc.
+set g to store_get with st and "cfg_text".
+say g["ok"].

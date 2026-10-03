@@ -165,7 +165,7 @@ static void generate_c(const char *src_path, const char *c_path) {
     fprintf(f, "AstNode *prog=parser_parse(&p);\n");
     fprintf(f, "if(p.had_error){fprintf(stderr,\"compile error: %%s\\n\",p.error_msg); return 1;}\n");
     fprintf(f, "interp_run(&ip,prog); if(ip.had_error) fprintf(stderr,\"runtime: %%s\\n\",ip.error_msg);\n");
-    fprintf(f, "return 0;}\n");
+    fprintf(f, "return (ip.had_error || ip.asserts_failed > 0) ? 1 : 0;}\n");
     fclose(f); free(src); free(esc);
 }
 
@@ -189,6 +189,308 @@ static int build_to(const char *src_path, const char *out_path) {
     unlink(c_path);
     if (rc==0) printf("Built %s (from %s)\n", out_path, src_path);
     return rc==0 ? 0 : 1;
+}
+
+// ── v1.26.0 CLI helpers: list/remove/info/search/env/clean/completions ──
+// forward decls (defined below near the registry/install code)
+static int sb_json_string(const char *json, const char *key, char *out, size_t cap);
+static int sb_sha256_file(const char *path, char *out, size_t cap);
+static int sb_read_manifest(char *name, size_t ncap, char *version, size_t vcap);
+
+static void sb_strip_sb_ext(const char *in, char *out, size_t cap) {
+    snprintf(out, cap, "%s", in);
+    size_t l = strlen(out);
+    if (l > 3 && strcmp(out + l - 3, ".sb") == 0) out[l-3] = '\0';
+}
+
+static int handle_list(void) {
+    DIR *d = opendir("sb_modules");
+    if (!d) { printf("No sb_modules/ here. Run: sb init\n"); return 0; }
+    int n = 0;
+    struct dirent *de;
+    while ((de = readdir(d)) != NULL) {
+        size_t l = strlen(de->d_name);
+        if (l > 3 && strcmp(de->d_name + l - 3, ".sb") == 0) {
+            char nm[256];
+            sb_strip_sb_ext(de->d_name, nm, sizeof(nm));
+            printf("  %s\n", nm);
+            n++;
+        }
+    }
+    closedir(d);
+    if (!n) printf("sb_modules/ is empty. Try: sb -b lists\n");
+    else printf("%d package(s).\n", n);
+    return 0;
+}
+
+static int handle_remove(int argc, char **argv) {
+    if (argc < 3) { fprintf(stderr, "Usage: sb remove <package>\n"); return 1; }
+    int start = 2;
+    if (strcmp(argv[2], "lib") == 0) start = 3;
+    if (start >= argc) { fprintf(stderr, "Usage: sb remove <package>\n"); return 1; }
+    int rc = 0;
+    for (int i = start; i < argc; i++) {
+        char pkg[256];
+        strncpy(pkg, argv[i], sizeof(pkg)-1); pkg[sizeof(pkg)-1] = '\0';
+        char *at = strchr(pkg, '@'); if (at) *at = '\0';
+        char dst[1024];
+        snprintf(dst, sizeof(dst), "sb_modules/%s.sb", pkg);
+        if (unlink(dst) == 0) printf("Removed %s\n", dst);
+        else { fprintf(stderr, "sb: '%s' not installed here\n", pkg); rc = 1; }
+    }
+    return rc;
+}
+
+static int handle_info(int argc, char **argv) {
+    if (argc < 3) { fprintf(stderr, "Usage: sb info <package>\n"); return 1; }
+    char pkg[256];
+    strncpy(pkg, argv[2], sizeof(pkg)-1); pkg[sizeof(pkg)-1] = '\0';
+    char *at = strchr(pkg, '@'); if (at) *at = '\0';
+    char p[1024];
+    int found = 0;
+    snprintf(p, sizeof(p), "sb_modules/%s.sb", pkg);
+    if (file_exists(p)) { printf("  installed: %s\n", p); found = 1; }
+    snprintf(p, sizeof(p), "%s/%s.sb", SB_STD_DIR, pkg);
+    if (file_exists(p)) { printf("  std:       %s\n", p); found = 1; }
+    snprintf(p, sizeof(p), "std/%s.sb", pkg);
+    if (file_exists(p)) { printf("  project:   %s\n", p); found = 1; }
+    const char *home = getenv("HOME");
+    if (home) {
+        char regdir[1024];
+        snprintf(regdir, sizeof(regdir), "%s/.shimbabomb/registry", home);
+        DIR *d = opendir(regdir);
+        if (d) {
+            struct dirent *de;
+            size_t plen = strlen(pkg);
+            while ((de = readdir(d)) != NULL) {
+                if (strncmp(de->d_name, pkg, plen) == 0 && de->d_name[plen] == '-') {
+                    printf("  registry:  %s/%s\n", regdir, de->d_name);
+                    found = 1;
+                }
+            }
+            closedir(d);
+        }
+        char libs[1024];
+        snprintf(libs, sizeof(libs), "%s/.shimbabomb/libraries/%s", home, pkg);
+        DIR *dl = opendir(libs);
+        if (dl) { printf("  library:   %s/\n", libs); found = 1; closedir(dl); }
+    }
+    printf("  web:       " SB_REGISTRY_BASE "/%s.json\n", pkg);
+    if (!found) printf("(%s is not installed locally; try: sb -b %s)\n", pkg, pkg);
+    return 0;
+}
+
+static int handle_search(int argc, char **argv) {
+    if (argc < 3) { fprintf(stderr, "Usage: sb search <query>\n"); return 1; }
+    char tmp[256];
+    snprintf(tmp, sizeof(tmp), "/tmp/sb_search_%d.json", getpid());
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "curl -sL --max-time 15 '" SB_REGISTRY_BASE "/index.json' -o '%s' 2>/dev/null", tmp);
+    if (system(cmd) != 0 || !file_exists(tmp)) {
+        fprintf(stderr, "sb: registry unreachable\n");
+        return 1;
+    }
+    char *json = read_file(tmp);
+    unlink(tmp);
+    if (!json) { fprintf(stderr, "sb: registry unreachable\n"); return 1; }
+    int n = 0;
+    const char *pos = json;
+    while ((pos = strstr(pos, "\"name\"")) != NULL) {
+        const char *c = strchr(pos + 6, ':');
+        if (!c) break;
+        c++;
+        while (*c==' '||*c=='\t'||*c=='"') c++;
+        char nm[128] = {0};
+        int i = 0;
+        while (*c && *c!='"' && i < 127) nm[i++] = *c++;
+        nm[i] = '\0';
+        if (strstr(nm, argv[2])) { printf("  %s   (sb -b %s)\n", nm, nm); n++; }
+        pos = c;
+    }
+    free(json);
+    if (!n) printf("No packages match '%s'.\n", argv[2]);
+    return 0;
+}
+
+static int handle_env(void) {
+    char ver[32] = "unknown";
+    FILE *vf = fopen("VERSION", "rb");
+    if (!vf) {
+        char vp[1024];
+        snprintf(vp, sizeof(vp), "%s/VERSION", SB_SRC_DIR);
+        vf = fopen(vp, "rb");
+    }
+    if (vf) { if (fgets(ver, sizeof(ver), vf)) ver[strcspn(ver, "\r\n")] = '\0'; fclose(vf); }
+    printf("version:  %s\n", ver);
+    printf("std:      %s\n", SB_STD_DIR);
+    printf("src:      %s\n", SB_SRC_DIR);
+    const char *home = getenv("HOME");
+    if (home) {
+        printf("registry: %s/.shimbabomb/registry\n", home);
+        printf("libraries:%s/.shimbabomb/libraries\n", home);
+    }
+    printf("local:    ./sb_modules\n");
+    return 0;
+}
+
+static int handle_lock(void) {
+    char name[256], version[64];
+    if (sb_read_manifest(name, sizeof(name), version, sizeof(version)) != 0) {
+        fprintf(stderr, "sb: no shimba.toml/sb.toml found\n");
+        return 1;
+    }
+    char sbver[32] = "unknown";
+    FILE *vf = fopen("VERSION", "rb");
+    if (!vf) {
+        char vp[1024];
+        snprintf(vp, sizeof(vp), "%s/VERSION", SB_SRC_DIR);
+        vf = fopen(vp, "rb");
+    }
+    if (vf) { if (fgets(sbver, sizeof(sbver), vf)) sbver[strcspn(sbver, "\r\n")] = '\0'; fclose(vf); }
+    FILE *f = fopen("shimba.lock", "w");
+    if (!f) { perror("shimba.lock"); return 1; }
+    fprintf(f, "# generated by sb lock — do not edit by hand\n");
+    fprintf(f, "[meta]\nsb = \"%s\"\nname = \"%s\"\nversion = \"%s\"\n", sbver, name, version);
+    int n = 0;
+    DIR *d = opendir("sb_modules");
+    if (d) {
+        struct dirent *de;
+        while ((de = readdir(d)) != NULL) {
+            size_t l = strlen(de->d_name);
+            if (l > 3 && strcmp(de->d_name + l - 3, ".sb") == 0) {
+                char nm[256], dst[1024], sha[128] = {0};
+                sb_strip_sb_ext(de->d_name, nm, sizeof(nm));
+                snprintf(dst, sizeof(dst), "sb_modules/%s", de->d_name);
+                sb_sha256_file(dst, sha, sizeof(sha));
+                fprintf(f, "\n[[packages]]\nname = \"%s\"\nsha256 = \"%s\"\n", nm, sha);
+                n++;
+            }
+        }
+        closedir(d);
+    }
+    fclose(f);
+    printf("Locked %d package(s) into ./shimba.lock\n", n);
+    return 0;
+}
+
+static int handle_outdated(void) {
+    DIR *d = opendir("sb_modules");
+    if (!d) { printf("No sb_modules/ here. Run: sb init\n"); return 0; }
+    int checked = 0, stale = 0, unregistered = 0;
+    struct dirent *de;
+    while ((de = readdir(d)) != NULL) {
+        size_t l = strlen(de->d_name);
+        if (l <= 3 || strcmp(de->d_name + l - 3, ".sb") != 0) continue;
+        char pkg[256], dst[1024];
+        sb_strip_sb_ext(de->d_name, pkg, sizeof(pkg));
+        snprintf(dst, sizeof(dst), "sb_modules/%s", de->d_name);
+        checked++;
+        // fetch registry entry
+        char meta[2048], tmpjson[256];
+        snprintf(meta, sizeof(meta), SB_REGISTRY_BASE "/%s.json", pkg);
+        snprintf(tmpjson, sizeof(tmpjson), "/tmp/sb_out_%d.json", getpid());
+        char cmd[2300];
+        snprintf(cmd, sizeof(cmd), "curl -sL --max-time 15 '%s' -o '%s' 2>/dev/null", meta, tmpjson);
+        if (system(cmd) != 0 || !file_exists(tmpjson)) { unlink(tmpjson); unregistered++; continue; }
+        char *json = read_file(tmpjson);
+        unlink(tmpjson);
+        if (!json) { unregistered++; continue; }
+        char latest[64] = {0}, url[1024] = {0}, sha[128] = {0};
+        if (!sb_json_string(json, "latest", latest, sizeof(latest))) { free(json); unregistered++; continue; }
+        char vpat[80];
+        snprintf(vpat, sizeof(vpat), "\"version\": \"%s\"", latest);
+        const char *blk = strstr(json, vpat);
+        if (!blk) {
+            char vpat2[80];
+            snprintf(vpat2, sizeof(vpat2), "\"version\":\"%s\"", latest);
+            blk = strstr(json, vpat2);
+        }
+        if (blk) {
+            sb_json_string(blk, "tarballUrl", url, sizeof(url));
+            sb_json_string(blk, "sha256", sha, sizeof(sha));
+        }
+        free(json);
+        if (!url[0] || !sha[0]) continue;
+        size_t ulen = strlen(url);
+        if (ulen <= 3 || strcmp(url + ulen - 3, ".sb") != 0) {
+            printf("  %s: registry has %s (manual check; archive install)\n", pkg, latest);
+            continue;
+        }
+        char got[128] = {0};
+        if (sb_sha256_file(dst, got, sizeof(got)) && strcmp(got, sha) != 0) {
+            printf("  %s: OUTDATED (registry: %s) — run: sb -b %s\n", pkg, latest, pkg);
+            stale++;
+        }
+    }
+    closedir(d);
+    if (!checked) printf("sb_modules/ is empty.\n");
+    else {
+        if (!stale) printf("All %d tracked package(s) up to date.\n", checked - unregistered);
+        if (unregistered) printf("%d package(s) not in the registry (no version to compare).\n", unregistered);
+    }
+    return 0;
+}
+
+static int handle_clean(void) {
+    int rc = system("rm -f /tmp/sb_*.json /tmp/sb_*.pkg /tmp/sb_http_*.txt /tmp/sb_search_*.json /tmp/fxm_*.txt 2>/dev/null; rm -rf /tmp/sb_pkg_* /tmp/sb_build_* 2>/dev/null; echo cleaned");
+    return rc == 0 ? 0 : 1;
+}
+
+static int handle_completions(int argc, char **argv) {
+    const char *sh = (argc >= 3) ? argv[2] : "bash";
+    if (strcmp(sh, "zsh") == 0) {
+        printf("#compdef sb\n_arguments '1: :(run install add init watch fmt web publish link pack test doc lsp build update upgrade uninstall list remove info search env clean completions version help)'\n");
+        return 0;
+    }
+    printf("# sb completions (bash) — source this or drop in /etc/bash_completion.d/\n"
+           "_sb_complete() {\n"
+           "  local cmds='run install add init watch fmt web publish link pack test doc lsp build update upgrade uninstall list remove info search env clean completions version help -b --help --version'\n"
+           "  COMPREPLY=($(compgen -W \"$cmds\" -- \"${COMP_WORDS[COMP_CWORD]}\"))\n"
+           "}\ncomplete -F _sb_complete sb\n");
+    return 0;
+}
+
+// read [project] name + version from shimba.toml/sb.toml (0 ok)
+static int sb_read_manifest(char *name, size_t ncap, char *version, size_t vcap) {
+    const char *manifest = NULL;
+    if (file_exists("shimba.toml")) manifest = "shimba.toml";
+    else if (file_exists("sb.toml")) manifest = "sb.toml";
+    else return 1;
+    snprintf(name, ncap, "unnamed");
+    snprintf(version, vcap, "0.1.0");
+    char *content = read_file(manifest);
+    if (!content) return 1;
+    char *line = strtok(content, "\n");
+    while (line) {
+        char *nn = strstr(line, "name");
+        if (nn) { char tmp[256]; if (sscanf(nn, " name = \"%255[^\"]\"", tmp)==1) snprintf(name, ncap, "%s", tmp); }
+        char *vv = strstr(line, "version");
+        if (vv) { char tmp[64]; if (sscanf(vv, " version = \"%63[^\"]\"", tmp)==1) snprintf(version, vcap, "%s", tmp); }
+        line = strtok(NULL, "\n");
+    }
+    free(content);
+    return 0;
+}
+
+static int handle_pack_tar(int argc, char **argv) {
+    const char *dir = (argc >= 4) ? argv[3] : ".";
+    char name[256], version[64];
+    char cwd[1024] = {0};
+    if (getcwd(cwd, sizeof(cwd)-1) && strcmp(dir, ".") != 0) {
+        if (chdir(dir) != 0) { fprintf(stderr, "sb: cannot enter %s\n", dir); return 1; }
+    }
+    if (sb_read_manifest(name, sizeof(name), version, sizeof(version)) != 0) {
+        fprintf(stderr, "sb: no shimba.toml/sb.toml found\n");
+        if (cwd[0]) chdir(cwd);
+        return 1;
+    }
+    char out[256], cmd[2048];
+    snprintf(out, sizeof(out), "%s-%s.tgz", name, version);
+    snprintf(cmd, sizeof(cmd), "tar czf '%s' --exclude='.git' --exclude='*.deb' --exclude='*.tgz' --exclude='sb_modules' . 2>&1 | tail -2", out);
+    int rc = system(cmd);
+    if (cwd[0]) chdir(cwd);
+    if (rc == 0) printf("Packed ./%s\n", out);
+    return rc == 0 ? 0 : 1;
 }
 
 // ── v1.25.0 web registry helpers ─────────────────────────────────────
@@ -559,8 +861,19 @@ static void print_help(void) {
     printf("  sb web                   Serve current dir on http://localhost:8080\n");
     printf("  sb publish               Publish package (info)\n");
     printf("  sb link                  Install THIS project as a local library\n");
-    printf("  sb pack deb|rpm [dir]    Package project into .deb or .rpm\n");
+    printf("  sb pack deb|rpm|tar [dir] Package project (.deb/.rpm/.tgz)\n");
     printf("  sb pack exe <file.sb>    Windows x64 console .exe (mingw)\n");
+    printf("  sb list                  List installed sb_modules/ packages\n");
+    printf("  sb remove <pkg>          Remove a package from sb_modules/\n");
+    printf("  sb info <pkg>            Where a package resolves from\n");
+    printf("  sb search <q>            Search the web registry\n");
+    printf("  sb env                   Show std/lib/registry paths + version\n");
+    printf("  sb clean                 Remove /tmp sb scratch files\n");
+    printf("  sb lock                  Write shimba.lock for sb_modules/\n");
+    printf("  sb outdated              Compare installed vs registry latest\n");
+    printf("  sb completions [bash|zsh] Print shell completions\n");
+    printf("  sb upgrade               Alias for sb update\n");
+    printf("  sb uninstall             Remove the sb installation\n");
     printf("  sb test                  Run tests/*.sb with assert\n");
     printf("  sb doc <file>            Generate HTML docs from ## comments\n");
     printf("  sb --debug file.sb       Step debugger (n/c/p var/where/q)\n");
@@ -582,6 +895,69 @@ static void repl_with(Interpreter *interp) {
         if (strcmp(line, "exit")==0 || strcmp(line, "quit")==0) { free(line); break; }
         if (strcmp(line, "help")==0) { print_help(); free(line); continue; }
         if (strcmp(line, "clear")==0) { printf("\033[2J\033[H"); free(line); continue; }
+        if (line[0]==':' && strcmp(line, ":ver")==0) {
+            char vv[32]="unknown"; FILE *vf=fopen("VERSION","rb");
+            if (!vf) {
+                char vp[1024]; snprintf(vp, sizeof(vp), "%s/VERSION", SB_SRC_DIR);
+                vf = fopen(vp, "rb");
+            }
+            if (vf) { if (fgets(vv,sizeof(vv),vf)) vv[strcspn(vv,"\r\n")]='\0'; fclose(vf); }
+            printf("sb %s\n", vv); free(line); continue;
+        }
+        if (line[0]==':' && strcmp(line, ":mods")==0) {
+            if (interp->loaded_count==0) printf("(no modules loaded yet — try: pls bring lists.)\n");
+            for (int li=0; li<interp->loaded_count; li++) printf("  %s\n", interp->loaded[li]);
+            free(line); continue;
+        }
+        if (line[0]=='?') {
+            static const char *topics[][2] = {
+                {"say", "say expr. — print with newline"},
+                {"set", "set x to expr. — assign (set x: number to v. checks type)"},
+                {"bring", "pls bring mod. — load a std/sb_modules library"},
+                {"define", "define f with a and b as ... end — new function"},
+                {"if", "if cond then ... otherwise ... end"},
+                {"while", "while cond then ... end"},
+                {"count", "count i from 0 to 9 then ... end"},
+                {"loop", "loop x through xs then ... end"},
+                {"match", "match v with 1 then ... with \"s\" then ... end"},
+                {"try", "try ... catch e ... end (see e_info map)"},
+                {"raise", "raise \"msg\". — throw an error"},
+                {"assert", "assert x is 1. — native assert"},
+                {"give", "give back expr. — return from function"},
+                {"list", "list with 1 and 2 — make list; item/length/add_to"},
+                {"map", "map with \"k\" and v — make map; m[\"k\"] reads"},
+                {"type_of", "type_of with x. — number/text/truth/list/map/..."},
+                {"sb_version", "sb_version with. — installed version string"},
+                {"chr", "chr with 65. — code to 1-char string"},
+                {"ord", "ord with \"A\". — first char to byte code"},
+                {"emit", "emit with s. — write without newline (TUI)"},
+                {"eof", "eof with. — true after stdin hit end of input"},
+                {"run", "run with \"ls\". — shell out, returns stdout"},
+                {"read_file", "read_file with path. / write_file / file_exists"},
+                {"fetch", "fetch with url. — https GET via curl"},
+                {"serve", "serve with port and handler. — tiny web server"},
+                {"c_matmul", "c_matmul with a and b. — fast matmul on nob tensors"},
+                {"tui", "tui_* via: pls bring sometui. (tui_text/box/list/...)"},
+                {"tasks", "spawn/await/chan via: pls bring tasks."},
+                {"debug", "assert_msg/expect_error via: pls bring debug."},
+                {"sbn", "sbn_decode/sbn_encode via: pls bring sbn."},
+                {"store", "store_open/put/get/queue via: pls bring store."},
+                {"formats", "json_get/ini_decode/toml_decode via: pls bring formats."},
+                {"url", "url_parse/url_build/url_encode via: pls bring url."},
+            };
+            const char *q = line+1;
+            while (*q==' '||*q=='\t') q++;
+            if (!*q) {
+                printf("topics: say set bring define if while count loop match try raise assert give list map type_of sb_version chr ord emit eof run read_file fetch serve c_matmul tui tasks debug sbn store formats url\n(?<name> for one, e.g. ?bring)\n");
+            } else {
+                int found = 0;
+                for (size_t ti=0; ti<sizeof(topics)/sizeof(topics[0]); ti++) {
+                    if (strcmp(q, topics[ti][0])==0) { printf("%s: %s\n", topics[ti][0], topics[ti][1]); found = 1; break; }
+                }
+                if (!found) printf("no help for '%s'. try ? alone for topics.\n", q);
+            }
+            free(line); continue;
+        }
         if (strlen(line)==0) { free(line); continue; }
 
         Parser parser;
@@ -1660,7 +2036,54 @@ int main(int argc, char **argv) {
     if (argc >= 2 && strcmp(argv[1], "pack") == 0) {
         if (argc >= 3 && strcmp(argv[2], "exe") == 0) return handle_pack_exe(argc-1, argv+1);
         if (argc >= 3 && strcmp(argv[2], "msi") == 0) return handle_pack_msi(argc-1, argv+1);
+        if (argc >= 3 && strcmp(argv[2], "tar") == 0) return handle_pack_tar(argc, argv);
         return handle_pack(argc, argv);
+    }
+    if (argc >= 2 && strcmp(argv[1], "list") == 0) {
+        return handle_list();
+    }
+    if (argc >= 2 && strcmp(argv[1], "remove") == 0) {
+        return handle_remove(argc, argv);
+    }
+    if (argc >= 2 && strcmp(argv[1], "info") == 0) {
+        return handle_info(argc, argv);
+    }
+    if (argc >= 2 && strcmp(argv[1], "search") == 0) {
+        return handle_search(argc, argv);
+    }
+    if (argc >= 2 && strcmp(argv[1], "env") == 0) {
+        return handle_env();
+    }
+    if (argc >= 2 && strcmp(argv[1], "clean") == 0) {
+        return handle_clean();
+    }
+    if (argc >= 2 && strcmp(argv[1], "lock") == 0) {
+        return handle_lock();
+    }
+    if (argc >= 2 && strcmp(argv[1], "outdated") == 0) {
+        return handle_outdated();
+    }
+    if (argc >= 2 && strcmp(argv[1], "completions") == 0) {
+        return handle_completions(argc, argv);
+    }
+    if (argc >= 2 && strcmp(argv[1], "upgrade") == 0) {
+        return handle_update();
+    }
+    if (argc >= 2 && strcmp(argv[1], "uninstall") == 0) {
+        // delegate to install.sh --uninstall wherever it lives
+        if (file_exists("./install.sh")) return system("bash ./install.sh --uninstall");
+        const char *home = getenv("HOME");
+        if (home) {
+            char cand[1024];
+            snprintf(cand, sizeof(cand), "%s/shimbabomb/install.sh", home);
+            if (file_exists(cand)) {
+                char cmd[1152];
+                snprintf(cmd, sizeof(cmd), "bash '%s' --uninstall", cand);
+                return system(cmd);
+            }
+        }
+        fprintf(stderr, "sb: install.sh not found. Manual removal:\n  rm ~/.local/bin/sb ~/.local/bin/sb.*\n  rm -rf ~/.local/share/shimbabomb\n");
+        return 1;
     }
     if (argc >= 2 && strcmp(argv[1], "packexe") == 0) {
         return handle_pack_exe(argc, argv);
@@ -1829,6 +2252,9 @@ int main(int argc, char **argv) {
 
     Value result = interp_run(&interp, program);
     int test_failed = interp.asserts_failed > 0;
+    // an uncaught runtime/import error must fail the run (and `sb test`),
+    // not just print — otherwise crashing scripts exit 0
+    int runtime_failed = interp.had_error;
     if (interp.had_error) {
         fprintf(stderr, "error (sb line %d): %s\n", interp.error_line, interp.error_msg);
         if (interp.error_trace[0]) fprintf(stderr, "%s\n", interp.error_trace);
@@ -1840,7 +2266,8 @@ int main(int argc, char **argv) {
     if (interactive && getenv("SB_NO_REPL") == NULL) {
         interp.had_error = 0;
         repl_with(&interp);
+        runtime_failed = 0;   // interactive session errors are not a file failure
     }
     interp_free(&interp);
-    return test_failed ? 1 : 0;
+    return (test_failed || runtime_failed) ? 1 : 0;
 }

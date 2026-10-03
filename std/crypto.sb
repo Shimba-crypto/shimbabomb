@@ -12,7 +12,10 @@ define sha256 with text as
 end
 
 define random_hex with length as
-    set out to run with "head -c200 /dev/urandom | sha256sum | tr -d ' ' | cut -c1-" plus to_string with length.
+    set base to "head -c200 /dev/urandom | sha256sum | tr -d ' ' | cut -c1-".
+    set n1 to to_string with length.
+    set cmd to base plus n1.
+    set out to run with cmd.
     give back trim with out.
 end
 

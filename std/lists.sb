@@ -23,7 +23,10 @@ end
 define uniq with xs as
     set out to list with.
     loop x through xs then
-        if has with out and x is 0 then add_to with out and x. end
+        set seen to has with out and x.
+        if not (seen) then
+          add_to with out and x.
+        end
     end
     give back out.
 end
@@ -52,4 +55,279 @@ define zip with a and b as
         add_to with out and pair.
     end
     give back out.
+end
+
+## — F batch: find/any/sort_by/group/flatten/take/stats ——————————————
+
+## first index where pred(el) is truthy, else -1. pred takes el.
+define find_idx with xs and pred as
+  set n to length with xs.
+  count i from 0 to n minus 1 then
+    set el to item with i and xs.
+    set r to pred with el.
+    if r then
+      give back i.
+    end
+  end
+  give back 0 minus 1.
+end
+
+define any_match with xs and pred as
+  set idx to find_idx with xs and pred.
+  if idx is less than 0 then give back 0. end
+  give back 1.
+end
+
+define all_match with xs and pred as
+  loop el through xs then
+    set r to pred with el.
+    if r then
+      set r to r.
+    otherwise
+      give back 0.
+    end
+  end
+  give back 1.
+end
+
+## pluck field from list of maps
+define pluck with xs and field as
+  set out to list with.
+  loop row through xs then
+    add_to with out and row[field].
+  end
+  give back out.
+end
+
+## str_compare with a and b -> 1 if a>b, 0 minus 1 if a<b, else 0 (lexical)
+define str_compare with a and b as
+  set i to 0.
+  set na to length with a.
+  set nb to length with b.
+  while i is less than na then
+    if i is less than nb then
+      set ca to ord with substr with a and i and 1.
+      set cb to ord with substr with b and i and 1.
+      if ca is greater than cb then give back 1. end
+      if cb is greater than ca then give back 0 minus 1. end
+      set i to i plus 1.
+    otherwise
+      give back 1.
+    end
+  end
+  if na is nb then give back 0. end
+  give back 0 minus 1.
+end
+
+## keys_greater with jk and curk -> 1 when jk should sort after curk (num or text)
+define keys_greater with jk and curk as
+  set tn to type_of with jk.
+  set tn2 to type_of with curk.
+  if tn is "number" then
+    if tn2 is "number" then
+      if jk is greater than curk then give back 1. end
+      give back 0.
+    end
+  end
+  set cmp to str_compare with to_string with jk and to_string with curk.
+  if cmp is greater than 0 then give back 1. end
+  give back 0.
+end
+
+## sort_by with xs and keycb (keycb takes el, returns number/string)
+define sort_by with xs and keycb as
+  set out to list with.
+  loop el through xs then
+    add_to with out and el.
+  end
+  set n to length with out.
+  count i from 1 to n minus 1 then
+    set cur to item with i and out.
+    set curk to keycb with cur.
+    set j to i minus 1.
+    set ins to 0.
+    set scanning to 1.
+    while scanning is 1 then
+      if j is less than 0 then
+        set scanning to 0.
+      otherwise
+        set jel to item with j and out.
+        set jk to keycb with jel.
+        set gt to keys_greater with jk and curk.
+        if gt is 1 then
+          set out[j plus 1] to jel.
+          set j to j minus 1.
+        otherwise
+          set scanning to 0.
+          set ins to j plus 1.
+        end
+      end
+    end
+    set out[ins] to cur.
+  end
+  give back out.
+end
+
+## group_by with xs and keycb -> map strkey -> list
+define group_by with xs and keycb as
+  set groups to map with.
+  loop el through xs then
+    set k to keycb with el.
+    set ks to to_string with k.
+    if has_key with groups and ks then
+      set bucket to groups[ks].
+      add_to with bucket and el.
+      set groups[ks] to bucket.
+    otherwise
+      set nb to list with el.
+      set groups[ks] to nb.
+    end
+  end
+  give back groups.
+end
+
+## flatten one level of nested lists (strings stay whole)
+define flatten with xs as
+  set out to list with.
+  loop el through xs then
+    if type_of with el is "list" then
+      loop sub through el then
+        add_to with out and sub.
+      end
+    otherwise
+      add_to with out and el.
+    end
+  end
+  give back out.
+end
+
+## flatten_deep fully
+define flatten_deep with xs as
+  set out to list with.
+  loop el through xs then
+    if type_of with el is "list" then
+      set sub2 to flatten_deep with el.
+      loop s2 through sub2 then
+        add_to with out and s2.
+      end
+    otherwise
+      add_to with out and el.
+    end
+  end
+  give back out.
+end
+
+## take/drop/rotate/partition/zip_longest/product/median/mode
+define take with xs and n as
+  set out to list with.
+  set total to length with xs.
+  if n is greater than total then set n to total. end
+  count i from 0 to n minus 1 then
+    add_to with out and item with i and xs.
+  end
+  give back out.
+end
+
+define drop with xs and n as
+  set out to list with.
+  set total to length with xs.
+  count i from n to total minus 1 then
+    add_to with out and item with i and xs.
+  end
+  give back out.
+end
+
+define rotate with xs and k as
+  set n to length with xs.
+  if n is 0 then give back xs. end
+  set q to k divided evenly by n.
+  set k2 to k minus q times n.
+  set out to list with.
+  count i from 0 to n minus 1 then
+    set src to i plus k2.
+    set q2 to src divided evenly by n.
+    set src to src minus q2 times n.
+    add_to with out and item with src and xs.
+  end
+  give back out.
+end
+
+define partition with xs and pred as
+  set yes to list with.
+  set no to list with.
+  loop el through xs then
+    set r to pred with el.
+    if r then
+      add_to with yes and el.
+    otherwise
+      add_to with no and el.
+    end
+  end
+  give back list with yes and no.
+end
+
+define zip_longest with a and b and fill as
+  set out to list with.
+  set na to length with a.
+  set nb to length with b.
+  set n to na.
+  if nb is greater than n then set n to nb. end
+  count i from 0 to n minus 1 then
+    set x to fill.
+    set y to fill.
+    if i is less than na then set x to item with i and a. end
+    if i is less than nb then set y to item with i and b. end
+    add_to with out and list with x and y.
+  end
+  give back out.
+end
+
+define product with xs as
+  set acc to 1.
+  loop el through xs then
+    set acc to acc times el.
+  end
+  give back acc.
+end
+
+define median with xs as
+  set s to sort with xs.
+  set n to length with s.
+  if n is 0 then give back 0. end
+  set mid to n divided evenly by 2.
+  set q to n divided evenly by 2.
+  set rem to n minus q times 2.
+  if rem is 1 then
+    give back item with mid and s.
+  end
+  set a2 to item with mid minus 1 and s.
+  set b2 to item with mid and s.
+  give back (a2 plus b2) divided by 2.
+end
+
+define mode with xs as
+  set best to 0.
+  set bestn to 0 minus 1.
+  loop el through xs then
+    set cnt to 0.
+    loop el2 through xs then
+      if el2 is el then set cnt to cnt plus 1. end
+    end
+    if cnt is greater than bestn then
+      set bestn to cnt.
+      set best to el.
+    end
+  end
+  give back best.
+end
+
+## first index of val in xs (by value), -1 when absent
+## NOTE: unlike has/find_idx this compares the value, not a predicate.
+define index_of with xs and val as
+  set n to length with xs.
+  count i from 0 to n minus 1 then
+    set el to item with i and xs.
+    if el is val then give back i. end
+  end
+  give back 0 minus 1.
 end

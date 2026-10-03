@@ -113,7 +113,18 @@ pls bring game.
 </div>
 <p>Need sprites, wireframe, solid 3D? <code>pls bring ketiwe</code> + <code>pls bring ketiwe3d</code> — all SB, copy-paste friendly.</p>
 
-<h2><span class="num">5</span>what next</h2>
+<h2><span class="num">5</span>libs: bring, publish, trust</h2>
+<div class="card">
+<pre><span class="k">sb -b</span> regex bifi        <span class="c"># bring libs (multi + foo@1.2.3 pins)</span>
+<span class="k">sb list</span>                  <span class="c"># what you have</span>
+<span class="k">sb publish</span>               <span class="c"># ship yours: tgz + git tag, then a PR</span>
+                             <span class="c"># touching site/registry/ puts it on</span>
+                             <span class="c"># shimbabomb.pages.dev/registry — reviewed,</span>
+                             <span class="c"># sha256-pinned, tamper-rejected on install</span></pre>
+</div>
+<p>SB gotchas that bite: trailing <code>plus</code> folds into a <code>with</code>-call's last arg (stage it in a temp), maps copy on fetch (write back through the owning variable), <code>has_key</code> returns a truth (never compare <code>is 0</code>), and <code>item</code> is arrays-only (use <code>substr s 0 1</code> for chars). Full list in <code>spec.html</code>.</p>
+
+<h2><span class="num">6</span>what next</h2>
 <ul class="hand">
   <li><a href="spec.html">spec</a> — every operator, every builtin, every trap</li>
   <li><a href="ketiwe.html">ketiwe</a> — X11 pixel UI, zero deps</li>

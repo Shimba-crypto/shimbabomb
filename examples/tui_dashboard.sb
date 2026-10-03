@@ -1,0 +1,30 @@
+SB
+## tui_dashboard — sometui widgets demo (non-interactive render)
+## run: sb examples/tui_dashboard.sb
+pls bring sometui.
+
+tui_clear with.
+tui_cursor with 0.
+tui_panel with 1 and 1 and 40 and 14 and "sys".
+set l1 to "cpu".
+set l2 to "ram".
+set labs to list with l1 and l2.
+set v1 to 65.
+set v2 to 42.
+set vals to list with v1 and v2.
+tui_bar_chart with 3 and 3 and labs and vals and 16.
+set s1 to 1.
+set s2 to 4.
+set s3 to 2.
+set s4 to 7.
+set spark to list with s1 and s2 and s3 and s4.
+tui_text with 6 and 3 and "load:".
+tui_sparkline with 6 and 10 and spark and 12.
+set m1 to "sb main.sb".
+set m2 to "shotout".
+set procs to list with m1 and m2.
+tui_menu with 8 and 3 and procs and 0.
+tui_checkbox with 11 and 3 and "autostart" and 1.
+tui_toast with 13 and 3 and "all systems nominal" and 2.
+tui_cursor with 1.
+tui_reset with.
