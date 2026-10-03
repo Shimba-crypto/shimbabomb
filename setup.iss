@@ -1,11 +1,11 @@
 [Setup]
 AppName=ShimbaBomb
-AppVersion=1.12.0
+AppVersion=1.26.0
 AppPublisher=Shimba-crypto
 DefaultDirName={autopf}\ShimbaBomb
 DefaultGroupName=ShimbaBomb
 OutputDir=Output
-OutputBaseFilename=ShimbaBomb-1.12.0-setup
+OutputBaseFilename=ShimbaBomb-1.26.0-setup
 Compression=lzma2
 SolidCompression=yes
 SetupIconFile=assets\logo.ico

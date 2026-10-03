@@ -7,8 +7,10 @@
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
+#ifndef _WIN32
 #include <termios.h>
 #include <sys/ioctl.h>
+#endif
 #include <fcntl.h>
 
 #if defined(_WIN32)
@@ -1764,6 +1766,7 @@ static Value native_read_csv(int argc, Value *args) {
 
 // ── sometui — terminal I/O primitives ────────────────────────────────
 
+#ifndef _WIN32
 static struct termios tui_orig_termios;
 static int tui_raw_mode = 0;
 
@@ -1811,6 +1814,23 @@ static Value native_tui_size(int argc, Value *args) {
     val_map_set(&m, "h", val_number(h));
     return m;
 }
+#else
+// Windows console: no termios — inert stubs so scripts keep running.
+static Value native_tui_raw(int argc, Value *args) { (void)argc; (void)args; return val_nil(); }
+static Value native_tui_cooked(int argc, Value *args) { (void)argc; (void)args; return val_nil(); }
+static Value native_tui_read(int argc, Value *args) {
+    (void)argc; (void)args;
+    int c = getchar();
+    return val_number(c == EOF ? -1 : c);
+}
+static Value native_tui_size(int argc, Value *args) {
+    (void)argc; (void)args;
+    Value m = val_map();
+    val_map_set(&m, "w", val_number(80));
+    val_map_set(&m, "h", val_number(24));
+    return m;
+}
+#endif
 
 static Value native_sb_version(int argc, Value *args) {
     (void)argc; (void)args;
@@ -1838,6 +1858,9 @@ static Value native_sb_version(int argc, Value *args) {
             fclose(vf);
             if (!ver[0]) snprintf(ver, sizeof(ver), "unknown");
         }
+#ifdef SB_VERSION
+        if (strcmp(ver, "unknown") == 0) snprintf(ver, sizeof(ver), "%s", SB_VERSION);
+#endif
     }
     return val_string(ver);
 }
